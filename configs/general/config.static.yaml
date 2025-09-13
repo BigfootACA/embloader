@@ -1,0 +1,77 @@
+devices:
+- name: "Radxa ROCK 5B"
+  match:
+  - field: "smbios.board0.manufacturer"
+    oper: "equals"
+    value: "Radxa"
+  - field: "smbios.board0.product"
+    oper: "equals"
+    value: "ROCK 5B"
+  profiles:
+  - "common"
+  - "rockchip"
+  - "rk3588"
+  - "radxa"
+  - "radxa-rock5b"
+
+- name: "Generic x86_64"
+  match:
+  - field: "smbios.system0.manufacturer"
+    oper: "contains"
+    value: "QEMU"
+  profiles:
+  - "common"
+  - "x86_64"
+  - "qemu"
+
+profiles:
+  common:
+    bootargs:
+    - "splash"
+  rk3588:
+    bootargs:
+    - "console=ttyAMA0"
+  radxa-rock5b:
+    dtb-id: "rk3588-radxa-rock5b"
+    bootargs:
+    - "example.device=rock5b"
+  x86_64:
+    dtb-id: qemu-virt
+    ktype: mainline
+
+menu:
+  # timeout: 30
+  default: "ubuntu-24.04"
+  save-default: true
+
+loaders:
+  efisetup:
+    title: "Reboot into Firmware Setup"
+    type: "efisetup"
+    complete: false
+    priority: 1000
+  poweroff:
+    title: "Power Off"
+    type: "reboot"
+    mode: "poweroff"
+    complete: false
+    priority: 1001
+  reboot:
+    title: "Reboot"
+    type: "reboot"
+    complete: false
+    priority: 1002
+  # ubuntu-24.04:
+  #   title: "Ubuntu 24.04 with Ubuntu Kernel"
+  #   type: "linux-efi"
+  #   kernel: "/vmlinuz-ubuntu"
+  #   initramfs:
+  #   - "/initrd-ubuntu.img"
+  #   bootargs:
+  #   - "loglevel=7"
+  #   - "panic=30"
+  #   ktype: "ubuntu-2404"
+
+devicetree:
+  dtbo-dir: "/dtbo/{ktype}/{profile}/"
+  default-dtb: "/dtbs/{ktype}/{profile}/{dtb-id}.dtb"

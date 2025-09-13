@@ -1,0 +1,26 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_sdboot
+  FILE_GUID                      = A64ABB03-2E30-4067-BFD7-088ED67BE52C
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_sdboot
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  UefiBootServicesTableLib
+  newlib
+  embloader_lib
+  embloader_configfile
+
+[Sources]
+  boot.c
+  base.c
+  file.c
+  menu.c
+  parser.c
+  types.c

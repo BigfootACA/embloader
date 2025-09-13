@@ -1,0 +1,39 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_linux
+  FILE_GUID                      = 839AA72A-393D-4E63-8480-BE0D14619298
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_linux
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Guids]
+  gFdtTableGuid
+
+[Protocols]
+  gEfiLoadFile2ProtocolGuid
+  gEfiLoadedImageProtocolGuid
+  gEfiDevicePathProtocolGuid
+
+[LibraryClasses]
+  BaseLib
+  UefiBootServicesTableLib
+  newlib
+  embloader_lib
+  embloader_configfile
+
+[Sources]
+  boot.c
+  bootargs.c
+  bootinfo.c
+  devicetree.c
+  dtbo_params.c
+  dtbo.c
+  efi.c
+  initramfs.c
+  kernel.c
+  load.c
+  preboot.c

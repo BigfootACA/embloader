@@ -1,0 +1,24 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = stb
+  FILE_GUID                      = 97646AAF-7195-490A-88FB-D9CD8F1DB33B
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = stb
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -Wno-missing-braces -Wno-incompatible-pointer-types -Wno-comment -Wno-unused-variable -Wno-unused-function
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  UefiLib
+  PrintLib
+  UefiApplicationEntryPoint
+  newlib
+
+[Sources]
+  separate/stb/stb.c

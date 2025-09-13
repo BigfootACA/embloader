@@ -1,0 +1,405 @@
+diff --git a/newlib/libc/include/sys/param.h b/newlib/libc/include/sys/param.h
+index 9a6f115a6..093f0284e 100644
+--- a/newlib/libc/include/sys/param.h
++++ b/newlib/libc/include/sys/param.h
+@@ -25,8 +25,12 @@
+ 
+ #define MAXPATHLEN PATH_MAX
+ 
++#ifndef MAX
+ #define MAX(a,b) ((a) > (b) ? (a) : (b))
++#endif
++#ifndef MIN
+ #define MIN(a,b) ((a) < (b) ? (a) : (b))
++#endif
+ 
+ #ifndef howmany
+ #define    howmany(x, y)   (((x)+((y)-1))/(y))
+diff --git a/newlib/libc/locale/nl_langinfo.c b/newlib/libc/locale/nl_langinfo.c
+index 4477d833b..c636fd0d8 100644
+--- a/newlib/libc/locale/nl_langinfo.c
++++ b/newlib/libc/locale/nl_langinfo.c
+@@ -24,7 +24,9 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ 
+ #include <sys/cdefs.h>
+ 
+diff --git a/newlib/libc/posix/regcomp.c b/newlib/libc/posix/regcomp.c
+index c83980946..fa55a8e3d 100644
+--- a/newlib/libc/posix/regcomp.c
++++ b/newlib/libc/posix/regcomp.c
+@@ -170,7 +170,9 @@ static int never = 0;		/* for use in asserts; shuts lint up */
+ #endif
+ 
+ /* Macro used by computejump()/computematchjump() */
++#ifndef MIN
+ #define MIN(a,b)	((a)<(b)?(a):(b))
++#endif
+ 
+ /*
+  - regcomp - interface for parser and compilation
+diff --git a/newlib/libc/posix/regex2.h b/newlib/libc/posix/regex2.h
+index 595bd899b..a8235e3f3 100644
+--- a/newlib/libc/posix/regex2.h
++++ b/newlib/libc/posix/regex2.h
+@@ -169,5 +169,8 @@ struct re_guts {
+ };
+ 
+ /* misc utilities */
++#ifdef OUT
++#undef OUT
++#endif
+ #define	OUT	(CHAR_MAX+1)	/* a non-character value */
+ #define ISWORD(c)       (isalnum((uch)(c)) || (c) == '_')
+diff --git a/newlib/libc/search/hash.c b/newlib/libc/search/hash.c
+index f242337f5..1519a6662 100644
+--- a/newlib/libc/search/hash.c
++++ b/newlib/libc/search/hash.c
+@@ -86,6 +86,9 @@ static void  swap_header_copy(HASHHDR *, HASHHDR *);
+ /* Fast arithmetic, relying on powers of 2, */
+ #define MOD(x, y)		((x) & ((y) - 1))
+ 
++#ifdef RETURN_ERROR
++#undef RETURN_ERROR
++#endif
+ #define RETURN_ERROR(ERR, LOC)	{ save_errno = ERR; goto LOC; }
+ 
+ /* Return values */
+diff --git a/newlib/libc/search/qsort_r.c b/newlib/libc/search/qsort_r.c
+index c4b6fb7e2..8aaf91aa1 100644
+--- a/newlib/libc/search/qsort_r.c
++++ b/newlib/libc/search/qsort_r.c
+@@ -43,6 +43,8 @@ PORTABILITY
+ <<qsort_r>>, in various forms, appears in both BSD and glibc.
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #define I_AM_GNU_QSORT_R
+ #include "qsort.c"
+diff --git a/newlib/libc/ssp/mempcpy_chk.c b/newlib/libc/ssp/mempcpy_chk.c
+index fc2ccf894..86238d347 100644
+--- a/newlib/libc/ssp/mempcpy_chk.c
++++ b/newlib/libc/ssp/mempcpy_chk.c
+@@ -1,4 +1,6 @@
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <sys/cdefs.h>
+ #include <ssp/ssp.h>
+ #include <string.h>
+diff --git a/newlib/libc/stdio/fopencookie.c b/newlib/libc/stdio/fopencookie.c
+index ab406a866..599e40bbb 100644
+--- a/newlib/libc/stdio/fopencookie.c
++++ b/newlib/libc/stdio/fopencookie.c
+@@ -82,7 +82,9 @@ It is not portable.  See also the <<funopen>> interface from BSD.
+ Supporting OS subroutines required: <<sbrk>>.
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <stdio.h>
+ #include <errno.h>
+ #include <sys/lock.h>
+diff --git a/newlib/libc/stdio/fvwrite.c b/newlib/libc/stdio/fvwrite.c
+index add48ba99..00d54dda1 100644
+--- a/newlib/libc/stdio/fvwrite.c
++++ b/newlib/libc/stdio/fvwrite.c
+@@ -25,7 +25,9 @@
+ #include "local.h"
+ #include "fvwrite.h"
+ 
++#ifndef MIN
+ #define	MIN(a, b) ((a) < (b) ? (a) : (b))
++#endif
+ #define	COPY(n)	  (void) memmove ((void *) fp->_p, (void *) p, (size_t) (n))
+ 
+ #define GETIOV(extra_work) \
+diff --git a/newlib/libc/stdio/getwc_u.c b/newlib/libc/stdio/getwc_u.c
+index 366ab0f36..63ca952a6 100644
+--- a/newlib/libc/stdio/getwc_u.c
++++ b/newlib/libc/stdio/getwc_u.c
+@@ -24,7 +24,9 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <reent.h>
+ #include <stdio.h>
+diff --git a/newlib/libc/stdio/getwchar_u.c b/newlib/libc/stdio/getwchar_u.c
+index c1f8d2da5..407e6c448 100644
+--- a/newlib/libc/stdio/getwchar_u.c
++++ b/newlib/libc/stdio/getwchar_u.c
+@@ -24,7 +24,9 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <reent.h>
+ #include <stdio.h>
+diff --git a/newlib/libc/stdio/putwc_u.c b/newlib/libc/stdio/putwc_u.c
+index 0ec11f04e..9c60b0b8d 100644
+--- a/newlib/libc/stdio/putwc_u.c
++++ b/newlib/libc/stdio/putwc_u.c
+@@ -24,7 +24,9 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <reent.h>
+ #include <stdio.h>
+diff --git a/newlib/libc/stdio/putwchar_u.c b/newlib/libc/stdio/putwchar_u.c
+index a5e6a57da..eb9590b4d 100644
+--- a/newlib/libc/stdio/putwchar_u.c
++++ b/newlib/libc/stdio/putwchar_u.c
+@@ -24,7 +24,9 @@
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <reent.h>
+ #include <stdio.h>
+diff --git a/newlib/libc/stdio/vfprintf.c b/newlib/libc/stdio/vfprintf.c
+index feb1fab56..7a7846c42 100644
+--- a/newlib/libc/stdio/vfprintf.c
++++ b/newlib/libc/stdio/vfprintf.c
+@@ -964,11 +964,7 @@ reswitch:	switch (ch) {
+ 		case 'g':
+ 		case 'G':
+ # ifdef _NO_LONGDBL
+-			if (flags & LONGDBL) {
+-				_fpvalue = (double) GET_ARG (N, ap, _LONG_DOUBLE);
+-			} else {
+-				_fpvalue = GET_ARG (N, ap, double);
+-			}
++			_fpvalue = (double) GET_ARG (N, ap, double);
+ 
+ 			/* do this before tricky precision changes
+ 
+diff --git a/newlib/libc/stdio/vfscanf.c b/newlib/libc/stdio/vfscanf.c
+index 71e2c3e22..a0ef49854 100644
+--- a/newlib/libc/stdio/vfscanf.c
++++ b/newlib/libc/stdio/vfscanf.c
+@@ -1946,7 +1946,7 @@ __SVFSCANF_R (struct _reent *rptr,
+ 	      else if (flags & LONGDBL)
+ 		{
+ 		  ldp = GET_ARG (N, ap, _LONG_DOUBLE *);
+-		  *ldp = QUAD_RES;
++		  *ldp = 0;
+ 		}
+ 	      else
+ 		{
+diff --git a/newlib/libc/stdlib/strtod.c b/newlib/libc/stdlib/strtod.c
+index 9156ed7d6..95297d7b7 100644
+--- a/newlib/libc/stdlib/strtod.c
++++ b/newlib/libc/stdlib/strtod.c
+@@ -130,7 +130,9 @@ THIS SOFTWARE.
+ 
+ /* Original file gdtoa-strtod.c Modified 06-21-2006 by Jeff Johnston to work within newlib.  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <errno.h>
+ #include <stdlib.h>
+diff --git a/newlib/libc/stdlib/strtol.c b/newlib/libc/stdlib/strtol.c
+index 09d4333ed..6e9d22b12 100644
+--- a/newlib/libc/stdlib/strtol.c
++++ b/newlib/libc/stdlib/strtol.c
+@@ -114,7 +114,9 @@ No supporting OS subroutines are required.
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <ctype.h>
+diff --git a/newlib/libc/stdlib/strtoll.c b/newlib/libc/stdlib/strtoll.c
+index 0f2fa5315..740102811 100644
+--- a/newlib/libc/stdlib/strtoll.c
++++ b/newlib/libc/stdlib/strtoll.c
+@@ -116,7 +116,9 @@ No supporting OS subroutines are required.
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <ctype.h>
+diff --git a/newlib/libc/stdlib/strtoul.c b/newlib/libc/stdlib/strtoul.c
+index d31bde5d2..9d162ad0f 100644
+--- a/newlib/libc/stdlib/strtoul.c
++++ b/newlib/libc/stdlib/strtoul.c
+@@ -114,7 +114,9 @@ PORTABILITY
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <ctype.h>
+diff --git a/newlib/libc/stdlib/strtoull.c b/newlib/libc/stdlib/strtoull.c
+index 943de6b83..0e37561cb 100644
+--- a/newlib/libc/stdlib/strtoull.c
++++ b/newlib/libc/stdlib/strtoull.c
+@@ -112,7 +112,9 @@ PORTABILITY
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <ctype.h>
+diff --git a/newlib/libc/stdlib/wcstold.c b/newlib/libc/stdlib/wcstold.c
+index 673d92811..a5f436e67 100644
+--- a/newlib/libc/stdlib/wcstold.c
++++ b/newlib/libc/stdlib/wcstold.c
+@@ -28,7 +28,9 @@ ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+ POSSIBILITY OF SUCH DAMAGE.
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <stdlib.h>
+ #include <string.h>
+ #include <wchar.h>
+diff --git a/newlib/libc/stdlib/wcstoll.c b/newlib/libc/stdlib/wcstoll.c
+index 34a7e376d..145f037ea 100644
+--- a/newlib/libc/stdlib/wcstoll.c
++++ b/newlib/libc/stdlib/wcstoll.c
+@@ -115,7 +115,9 @@ No supporting OS subroutines are required.
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <wctype.h>
+diff --git a/newlib/libc/stdlib/wcstoull.c b/newlib/libc/stdlib/wcstoull.c
+index 09422fa97..e61e7b0bf 100644
+--- a/newlib/libc/stdlib/wcstoull.c
++++ b/newlib/libc/stdlib/wcstoull.c
+@@ -121,7 +121,9 @@ PORTABILITY
+  * SUCH DAMAGE.
+  */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <limits.h>
+ #include <wchar.h>
+diff --git a/newlib/libc/string/strerror_r.c b/newlib/libc/string/strerror_r.c
+index 660fee869..ec354ebab 100644
+--- a/newlib/libc/string/strerror_r.c
++++ b/newlib/libc/string/strerror_r.c
+@@ -57,7 +57,9 @@ a non-empty alternate string without assigning into its third argument.
+ */
+ 
+ #undef __STRICT_ANSI__
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <errno.h>
+ #include <string.h>
+ #undef strerror_r
+diff --git a/newlib/libc/string/strnstr.c b/newlib/libc/string/strnstr.c
+index cb5f71914..e456ed351 100644
+--- a/newlib/libc/string/strnstr.c
++++ b/newlib/libc/string/strnstr.c
+@@ -30,7 +30,9 @@ QUICKREF
+ 
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define	_GNU_SOURCE
++#endif
+ #include <string.h>
+ 
+ /*
+diff --git a/newlib/libc/string/strverscmp.c b/newlib/libc/string/strverscmp.c
+index 0117421c9..b9909b0e2 100644
+--- a/newlib/libc/string/strverscmp.c
++++ b/newlib/libc/string/strverscmp.c
+@@ -56,7 +56,9 @@ TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <ctype.h>
+ #include <string.h>
+ 
+diff --git a/newlib/libc/string/wcwidth.c b/newlib/libc/string/wcwidth.c
+index 8348eefe8..65604c061 100644
+--- a/newlib/libc/string/wcwidth.c
++++ b/newlib/libc/string/wcwidth.c
+@@ -230,7 +230,7 @@ __wcwidth (const wint_t ucs)
+ }
+ 
+ int
+-wcwidth (const wint_t wc)
++wcwidth (const wchar_t wc)
+ {
+   wint_t wi = wc;
+ 
+diff --git a/newlib/libc/string/wmempcpy.c b/newlib/libc/string/wmempcpy.c
+index 98983f968..2c109fd5f 100644
+--- a/newlib/libc/string/wmempcpy.c
++++ b/newlib/libc/string/wmempcpy.c
+@@ -28,7 +28,9 @@ PORTABILITY
+ No supporting OS subroutines are required.
+ */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <_ansi.h>
+ #include <string.h>
+ #include <wchar.h>
+diff --git a/newlib/libc/time/strptime.c b/newlib/libc/time/strptime.c
+index 188218059..00cc7eb4d 100644
+--- a/newlib/libc/time/strptime.c
++++ b/newlib/libc/time/strptime.c
+@@ -30,7 +30,9 @@
+  * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
+  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE. */
+ 
++#ifndef _GNU_SOURCE
+ #define _GNU_SOURCE
++#endif
+ #include <stddef.h>
+ #include <stdio.h>
+ #include <time.h>

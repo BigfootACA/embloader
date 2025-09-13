@@ -1,0 +1,34 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_configfile
+  FILE_GUID                      = F5C42056-5658-40A1-B4A3-422A7F9D8BD2
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_configfile
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  UefiLib
+  PrintLib
+  libyaml
+  jsonc
+  newlib
+  embloader_lib
+
+[Sources]
+  array.c
+  conf.c
+  file.c
+  iter.c
+  json.c
+  map.c
+  merge.c
+  node.c
+  path.c
+  value.c
+  wrapper.c
+  yaml.c

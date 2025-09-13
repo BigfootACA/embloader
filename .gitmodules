@@ -1,0 +1,32 @@
+[submodule "embloader/ext/newlib"]
+	path = embloader/ext/newlib
+	url = https://sourceware.org/git/newlib-cygwin.git
+	ignore = dirty
+[submodule "embloader/ext/json-c"]
+	path = embloader/ext/json-c
+	url = https://github.com/json-c/json-c
+	ignore = dirty
+[submodule "embloader/ext/dtc"]
+	path = embloader/ext/dtc
+	url = https://git.kernel.org/pub/scm/utils/dtc/dtc.git
+	ignore = dirty
+[submodule "embloader/ext/libufdt"]
+	path = embloader/ext/libufdt
+	url = https://android.googlesource.com/platform/system/libufdt
+	ignore = dirty
+[submodule "embloader/ext/stb"]
+	path = embloader/ext/stb
+	url = https://github.com/nothings/stb
+	ignore = dirty
+[submodule "embloader/ext/libyaml"]
+	path = embloader/ext/libyaml
+	url = https://github.com/yaml/libyaml
+	ignore = dirty
+[submodule "embloader/ext/lvgl"]
+	path = embloader/ext/lvgl
+	url = https://github.com/BigfootACA/lvgl
+	ignore = dirty
+[submodule "embloader/ext/nanosvg"]
+	path = embloader/ext/nanosvg
+	url = https://github.com/memononen/nanosvg
+	ignore = dirty

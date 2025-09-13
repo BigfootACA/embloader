@@ -1,0 +1,47 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader
+  FILE_GUID                      = 68BBD861-14F1-459C-8708-4BED340D232F
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  ENTRY_POINT                    = efi_main
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Protocols]
+  gEfiSimpleFileSystemProtocolGuid
+  gEfiDevicePathToTextProtocolGuid
+  gEfiLoadedImageProtocolGuid
+
+[LibraryClasses]
+  BaseLib
+  UefiLib
+  PrintLib
+  UefiApplicationEntryPoint
+  embloader_configfile
+  embloader_encode
+  embloader_lib
+  embloader_linux
+  embloader_smbios
+  embloader_menu
+  embloader_sdboot
+  embloader_loader
+  regexp
+  libyaml
+  jsonc
+  libfdt
+  libufdt
+  stb
+  newlib
+
+[Sources]
+  cmdline.c
+  config.c
+  device.c
+  dir.c
+  dtbo.c
+  main.c
+  match.c
+  resolve.c

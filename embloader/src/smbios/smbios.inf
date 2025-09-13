@@ -1,0 +1,74 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_smbios
+  FILE_GUID                      = 7C88668E-B48B-4B67-BC17-0DB59722098D
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_smbios
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Guids]
+  gEfiSmbiosTableGuid
+  gEfiSmbios3TableGuid
+
+[LibraryClasses]
+  BaseLib
+  UefiBootServicesTableLib
+  newlib
+  embloader_lib
+  embloader_configfile
+
+[Sources]
+  base.c
+  load.c
+  types.c
+  types/type0.c
+  types/type1.c
+  types/type2.c
+  types/type3.c
+  types/type4.c
+  types/type5.c
+  types/type6.c
+  types/type7.c
+  types/type8.c
+  types/type9.c
+  types/type10.c
+  types/type11.c
+  types/type12.c
+  types/type13.c
+  types/type14.c
+  types/type15.c
+  types/type16.c
+  types/type17.c
+  types/type18.c
+  types/type19.c
+  types/type20.c
+  types/type21.c
+  types/type22.c
+  types/type23.c
+  types/type24.c
+  types/type25.c
+  types/type26.c
+  types/type27.c
+  types/type28.c
+  types/type29.c
+  types/type30.c
+  types/type31.c
+  types/type32.c
+  types/type33.c
+  types/type34.c
+  types/type35.c
+  types/type36.c
+  types/type37.c
+  types/type38.c
+  types/type39.c
+  types/type40.c
+  types/type41.c
+  types/type42.c
+  types/type43.c
+  types/type44.c
+  types/type45.c
+  types/type46.c

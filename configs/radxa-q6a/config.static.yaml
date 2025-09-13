@@ -1,0 +1,39 @@
+devices:
+- name: Radxa Dragon Q6A
+  match:
+  - field: smbios.system0.manufacturer
+    oper: equals
+    value: Radxa Computer Co., Ltd.
+  - field: smbios.system0.product_name
+    oper: equals
+    value: Radxa Dragon Q6A
+  profiles:
+  - common
+  - qualcomm
+  - qcs6490
+  - radxa
+  - radxa-q6a
+
+profiles:
+  common:
+    bootargs:
+    - loglevel=8
+    - panic=30
+  qcs6490:
+    bootargs:
+    - console=ttyMSM0
+    - earlycon=qcom_geni,0x994000
+  radxa-q6a:
+    dtb-id: qcs6490-radxa-dragon-q6a
+    ktype: mainline
+
+devicetree:
+  dtbo-dir: /dtbo/{ktype}/{profile}/
+  default-dtb: /dtbs/{ktype}/{profile}/{dtb-id}.dtb
+  overlays:
+    qcs6490-kvm:
+      enabled: true
+
+log:
+  print-sysinfo: false
+  print-config: false

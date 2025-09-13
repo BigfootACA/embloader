@@ -1,0 +1,8 @@
+CompileFlags:
+  Remove:
+  - -mabi=lp64
+  - -maccumulate-outgoing-args
+  - -femit-struct-debug-baseonly
+  - -fconserve-stack
+  - -fno-allow-store-data-races
+  - -fmin-function-alignment=8

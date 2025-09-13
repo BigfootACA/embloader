@@ -1,0 +1,17 @@
+[Defines]
+  DEC_SPECIFICATION              = 0x00010005
+  PACKAGE_NAME                   = embloader
+  PACKAGE_VERSION                = 0.01
+
+[Includes]
+  include
+  ext/json-c
+  ext/separate/json-c/pub
+  ext/libyaml/include
+  ext/newlib/newlib/libc/include
+  ext/dtc/libfdt
+  ext/libufdt/include
+  ext/libufdt/sysdeps/include
+  ext/stb
+  ext/regexp
+  ext/lvgl

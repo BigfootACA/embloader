@@ -1,0 +1,21 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_encode
+  FILE_GUID                      = 0CF72B9C-97D3-4A1F-A7A2-DB28DF12E7AF
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_encode
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  newlib
+  embloader_lib
+
+[Sources]
+  converts.c
+  encode.c
+  simple.c
+  utf8_utf16.c

@@ -1,0 +1,21 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_resource
+  FILE_GUID                      = 8AD142A7-F816-48CB-BF5C-279EE9574B30
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_resource
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Guids]
+  gFdtTableGuid
+
+[LibraryClasses]
+  newlib
+  lvgl
+
+[Sources]
+  mouse.S

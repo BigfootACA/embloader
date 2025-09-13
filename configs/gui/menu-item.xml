@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component>
+	<styles>
+		<style
+			name="wrapper_box"
+			radius="0"
+			border_width="0"
+			outline_width="0"
+			pad_all="0"
+			margin_all="0"/>
+	</styles>
+	<api>
+		<prop name="name" type="string"/>
+		<prop name="title" type="string"/>
+		<prop name="index" type="int"/>
+	</api>
+	<view 
+		extends="lv_button"
+		width="100%"
+		height="content"
+		flex_flow="row"
+		checkable="true"
+		clickable="true"
+	>
+			<lv_label
+				text="$title"
+				width="content"
+				height="content"
+				style_pad_left="8px"/>
+	</view>
+</component>

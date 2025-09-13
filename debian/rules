@@ -1,0 +1,70 @@
+#!/usr/bin/make -f
+ARCH ?= $(shell $(CC) -dumpmachine | cut -d- -f1)
+EDK2_PATH = $(realpath edk2)
+EDK2_TARGET = RELEASE
+EDK2_TOOLCHAIN = GCC5
+ifeq ($(ARCH),x86_64)
+	EDK2_ARCH = X64
+else ifeq ($(ARCH),aarch64)
+	EDK2_ARCH = AARCH64
+else ifeq ($(ARCH),riscv64)
+	EDK2_ARCH = RISCV64
+else ifeq ($(ARCH),i386)
+	EDK2_ARCH = IA32
+else
+$(error Unsupported architecture: $(ARCH))
+endif
+
+export EDK2_PATH EDK2_TARGET EDK2_TOOLCHAIN EDK2_ARCH
+
+%:
+	dh $@ --no-auto
+
+clean:
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+build: build-arch build-indep
+
+build-arch:
+	dh_testdir
+	if [ -d build ]; then \
+		find build -name '*.efi' -delete || true; \
+		find build -name '*.debug' -delete || true; \
+	fi
+	bash build.sh
+
+build-indep:
+
+binary: binary-arch binary-indep
+
+binary-arch:
+	dh_testdir
+	dh_testroot
+	dh_prep
+	install -Dm644 build/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/$(EDK2_ARCH)/embloader.efi \
+		debian/embloader/usr/share/embloader/embloader.efi
+	install -Dm644 build/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/$(EDK2_ARCH)/embloader.debug \
+		debian/embloader/usr/share/embloader/embloader.debug
+	install -d debian/embloader/usr/share/doc/embloader/
+	cp -a docs/* debian/embloader/usr/share/doc/embloader/
+	install -d debian/embloader/usr/share/embloader/configs/
+	cp -a configs/* debian/embloader/usr/share/embloader/configs/
+	if [ -f README.md ]; then install -m644 README.md debian/embloader/usr/share/doc/embloader/; fi
+	if [ -f LICENSE ]; then install -m644 LICENSE debian/embloader/usr/share/doc/embloader/; fi
+	dh_installdocs
+	dh_installchangelogs
+	dh_compress
+	dh_fixperms
+	dh_strip --exclude=embloader.debug --exclude=*.debug
+	dh_makeshlibs
+	dh_shlibdeps
+	dh_installdeb
+	dh_gencontrol
+	dh_md5sums
+	dh_builddeb
+
+binary-indep:
+
+.PHONY: clean build build-arch build-indep binary binary-arch binary-indep

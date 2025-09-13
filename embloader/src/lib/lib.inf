@@ -1,0 +1,34 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_lib
+  FILE_GUID                      = 9213BF36-F9CE-4021-9E43-00C84C7C0F57
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_lib
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Guids]
+  gEfiFileInfoGuid
+
+[LibraryClasses]
+  BaseLib
+  UefiLib
+  PrintLib
+  newlib
+
+[Sources]
+  crc32.c
+  dump.c
+  efi-utils.c
+  file-utils.c
+  list.c
+  log.c
+  missing.c
+  path.c
+  readable.c
+  readline.c
+  str-utils.c
+  string.c

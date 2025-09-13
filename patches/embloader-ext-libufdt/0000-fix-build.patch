@@ -1,0 +1,14 @@
+diff --git a/ufdt_node_pool.c b/ufdt_node_pool.c
+index 8b9c8a9..bfb74c5 100644
+--- a/ufdt_node_pool.c
++++ b/ufdt_node_pool.c
+@@ -22,7 +22,9 @@
+ /* Define DEBUG_DISABLE_POOL to use dto_malloc and dto_free directly */
+ /* #define DEBUG_DISABLE_POOL */
+ 
++#ifndef MAX
+ #define MAX(a, b) ((a) > (b) ? (a) : (b))
++#endif
+ 
+ #define UFDT_NODE_POOL_ENTRIES_PER_BLOCK 1024
+ /* UFDT_NODE_POOL_ENTRY_SIZE must be equal to or larger than

@@ -1,0 +1,36 @@
+Source: embloader
+Section: utils
+Priority: optional
+Maintainer: BigfootACA <bigfoot@classfun.cn>
+Build-Depends: debhelper,
+               gcc,
+               g++,
+               git,
+               make,
+               nasm,
+               python3,
+               uuid-dev,
+               build-essential
+Standards-Version: 4.6.0
+Homepage: https://github.com/BigfootACA/embloader
+Vcs-Git: https://github.com/BigfootACA/embloader.git
+Vcs-Browser: https://github.com/BigfootACA/embloader
+
+Package: embloader
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Embedded Bootloader
+ embloader is a modern multi-platform unified boot loader that supports
+ various architectures including x86_64, aarch64, riscv64, and others.
+ It provides a flexible configuration system for device detection,
+ boot menu management, and supports Linux kernel loading with device
+ tree overlays.
+ .
+ Features include:
+  - Multi-architecture support (x86_64, ARM64, RISC-V, etc.)
+  - systemd-boot / UAPI Boot Loader Specification support
+  - SMBIOS-based device detection
+  - Device tree and overlay support
+  - Configurable boot menus
+  - EFI stub loader support
+  - Initramfs loading

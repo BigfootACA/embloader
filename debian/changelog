@@ -1,0 +1,10 @@
+embloader (0.1) unstable; urgency=medium
+
+  * Initial release of embloader
+  * Multi-platform unified boot loader
+  * Support for x86_64, aarch64, riscv64 architectures
+  * SMBIOS-based device detection
+  * Device tree and overlay support
+  * Configurable boot menus
+
+ -- BigfootACA <bigfoot@classfun.cn>  Wed, 10 Sep 2025 15:00:00 +0800

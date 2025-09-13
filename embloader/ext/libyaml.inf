@@ -1,0 +1,27 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = libyaml
+  FILE_GUID                      = FB8ECD96-6245-4ADA-BA6D-55C281A07FA0
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = libyaml
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -DYAML_VERSION_STRING=\"0.2.5\" -DYAML_VERSION_MAJOR=0 -DYAML_VERSION_MINOR=2 -DYAML_VERSION_PATCH=5 -Wno-unused-value
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  newlib
+
+[Sources]
+  libyaml/src/api.c
+  libyaml/src/dumper.c
+  libyaml/src/emitter.c
+  libyaml/src/loader.c
+  libyaml/src/parser.c
+  libyaml/src/reader.c
+  libyaml/src/scanner.c
+  libyaml/src/writer.c

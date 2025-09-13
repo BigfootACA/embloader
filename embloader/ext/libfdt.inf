@@ -1,0 +1,26 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = libfdt
+  FILE_GUID                      = 16C95903-4348-449B-B851-D1D49B9D9B7F
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = libfdt
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  newlib
+
+[Sources]
+  dtc/libfdt/fdt.c
+  dtc/libfdt/fdt_addresses.c
+  dtc/libfdt/fdt_check.c
+  dtc/libfdt/fdt_empty_tree.c
+  dtc/libfdt/fdt_overlay.c
+  dtc/libfdt/fdt_ro.c
+  dtc/libfdt/fdt_rw.c
+  dtc/libfdt/fdt_strerror.c
+  dtc/libfdt/fdt_sw.c
+  dtc/libfdt/fdt_wip.c

@@ -1,0 +1,23 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = libufdt
+  FILE_GUID                      = 16C95903-4348-449B-B851-D1D49B9D9B7F
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = libufdt
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  newlib
+  libfdt
+
+[Sources]
+  libufdt/ufdt_convert.c
+  libufdt/ufdt_node.c
+  libufdt/ufdt_node_pool.c
+  libufdt/ufdt_overlay.c
+  libufdt/ufdt_prop_dict.c
+  separate/libufdt/libufdt_sysdeps.c

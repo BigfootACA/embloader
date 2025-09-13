@@ -1,0 +1,37 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = jsonc
+  FILE_GUID                      = A342B7EF-5F03-4319-9735-79B8745041A7
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = jsonc
+
+[BuildOptions]
+  GCC:*_*_*_CC_FLAGS = -D_GNU_SOURCE
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  newlib
+
+[Sources]
+  json-c/arraylist.c
+  json-c/debug.c
+  json-c/json_c_version.c
+  json-c/json_object.c
+  json-c/json_object_iterator.c
+  json-c/json_patch.c
+  json-c/json_pointer.c
+  json-c/json_tokener.c
+  json-c/json_util.c
+  json-c/json_visit.c
+  json-c/libjson.c
+  json-c/linkhash.c
+  json-c/printbuf.c
+  json-c/random_seed.c
+  json-c/strerror_override.c
+  separate/json-c/priv/config.h
+  separate/json-c/pub/json_config.h
+  separate/json-c/pub/json.h

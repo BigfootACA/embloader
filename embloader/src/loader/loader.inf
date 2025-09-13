@@ -1,0 +1,34 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_loader
+  FILE_GUID                      = C23D08FD-614D-4EC7-AC74-49B672B7A7A0
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_loader
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[Guids]
+  gFdtTableGuid
+
+[LibraryClasses]
+  BaseLib
+  UefiBootServicesTableLib
+  newlib
+  embloader_lib
+  embloader_sdboot
+  embloader_linux
+  embloader_configfile
+
+[Sources]
+  type/efi.c
+  type/efisetup.c
+  type/linux_efi.c
+  type/linux.c
+  type/reboot.c
+  type/sdboot.c
+  efi.c
+  loader.c
+  types.c
