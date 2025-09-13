@@ -1,0 +1,56 @@
+name: Build Package
+
+on:
+  push:
+    branches: [ master ]
+  workflow_dispatch:
+
+jobs:
+  build-deb:
+    strategy:
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+          - arch: arm64
+            runner: ubuntu-latest-arm64
+    runs-on: ${{ matrix.runner }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 1
+
+    - name: Set up dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          debhelper \
+          gcc \
+          g++ \
+          git \
+          make \
+          nasm \
+          python3 \
+          uuid-dev \
+          build-essential \
+          fakeroot \
+          devscripts
+
+    - name: Build Debian package
+      run: |
+        dpkg-buildpackage -b
+        mv ../*.deb .
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: embloader-${{ matrix.arch }}
+        path: |
+          *.deb
+          build/Build/embloader/RELEASE_GCC5/*/embloader.efi
+          build/Build/embloader/RELEASE_GCC5/*/embloader.debug
+        retention-days: 30
+        if-no-files-found: error
