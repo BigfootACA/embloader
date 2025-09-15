@@ -52,7 +52,7 @@
 // #define HAVE_GETRUSAGE 1
 #define HAVE_STRTOLL 1
 #define HAVE_STRTOULL 1
-#define HAVE___THREAD 1
+// #define HAVE___THREAD 1
 #define JSON_C_HAVE_INTTYPES_H 1
 #define PACKAGE "json-c"
 #define PACKAGE_BUGREPORT "json-c@googlegroups.com"

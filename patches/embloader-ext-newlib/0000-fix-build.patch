@@ -320,6 +320,20 @@ index 09422fa97..e61e7b0bf 100644
  #include <_ansi.h>
  #include <limits.h>
  #include <wchar.h>
+diff --git a/newlib/libc/string/str-two-way.h b/newlib/libc/string/str-two-way.h
+index e13f94907..df40388c2 100644
+--- a/newlib/libc/string/str-two-way.h
++++ b/newlib/libc/string/str-two-way.h
+@@ -56,7 +56,9 @@
+ # define LONG_NEEDLE_THRESHOLD SIZE_MAX
+ #endif
+ 
++#ifndef MAX
+ #define MAX(a, b) ((a < b) ? (b) : (a))
++#endif
+ 
+ #ifndef CANON_ELEMENT
+ # define CANON_ELEMENT(c) c
 diff --git a/newlib/libc/string/strerror_r.c b/newlib/libc/string/strerror_r.c
 index 660fee869..ec354ebab 100644
 --- a/newlib/libc/string/strerror_r.c

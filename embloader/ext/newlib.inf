@@ -10,6 +10,7 @@
   GCC:*_*_*_CC_FLAGS = -D_GNU_SOURCE -Wno-unused-variable -Wno-old-style-definition
   GCC:*_*_*_CC_FLAGS = -Wno-comment -Wno-unused-function -Wno-unused-label -Wno-parentheses
   GCC:*_*_*_CC_FLAGS = -Wno-missing-braces -Wno-infinite-recursion -Wno-uninitialized
+  GCC:*_*_*_CC_FLAGS = -Wno-unused-but-set-variable
 
 [Packages]
   embloader/embloader.dec

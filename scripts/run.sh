@@ -9,6 +9,9 @@ IMAGE_NAME="embloader-boot.img"
 IMAGE_SIZE="64M"
 MOUNT_POINT="/tmp/embloader_mount"
 IMAGE_PATH="$BUILD_DIR/$IMAGE_NAME"
+if [ -z "$EDK2_TARGET" ]; then
+	export EDK2_TARGET=RELEASE
+fi
 
 function cleanup() {
 	mountpoint -q "$MOUNT_POINT" 2>/dev/null && umount "$MOUNT_POINT" || true
