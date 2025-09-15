@@ -6,3 +6,7 @@ CompileFlags:
   - -fconserve-stack
   - -fno-allow-store-data-races
   - -fmin-function-alignment=8
+  Add:
+  - -D__GLIBC_USE(FEATURE)=0
+Diagnostics:
+  UnusedIncludes: Disable
