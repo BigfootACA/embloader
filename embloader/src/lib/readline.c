@@ -35,30 +35,29 @@ EFI_STATUS efi_readline(
 	time_t timeout
 ) {
 	EFI_INPUT_KEY key;
-	EFI_STATUS status;
+	EFI_STATUS status = EFI_NOT_READY;
 	if (!in || !buffer || size == 0) return EFI_INVALID_PARAMETER;
 	memset(buffer, 0, size);
 	uint64_t times = 0;
-	do {
-		status = in->ReadKeyStroke(in, &key);
-	} while (!EFI_ERROR(status));
 	while (true) {
 		memset(&key, 0, sizeof(key));
-		if (timeout > 0 && times > timeout * 1000) {
-			out->OutputString(out, L"\r\nTimeout\r\n");
-			return EFI_TIMEOUT;
-		}
 		gBS->Stall(50000);
 		times += 50;
 		status = in->ReadKeyStroke(in, &key);
+		if (status == EFI_NOT_READY) {
+			if (timeout >= 0 && times > timeout * 1000) {
+				out->OutputString(out, L"\r\n");
+				if (timeout != 0) out->OutputString(out, L"Timeout\r\n");
+				return EFI_TIMEOUT;
+			}
+			continue;
+		}
 		if (EFI_ERROR(status)) {
-			if (status == EFI_NOT_READY) continue;
 			CHAR16 err_msg[64];
-			UnicodeSPrint(err_msg, sizeof(err_msg),L"failed to read key: %r\r\n", status);
+			UnicodeSPrint(err_msg, sizeof(err_msg), L"failed to read key: %r\r\n", status);
 			out->OutputString(out, err_msg);
 			return status;
 		}
-		times = UINT64_MAX;
 		size_t len = strlen(buffer);
 		if (key.ScanCode == SCAN_ESC) {
 			memset(buffer, 0, len);
@@ -86,6 +85,7 @@ EFI_STATUS efi_readline(
 			isprint((char) key.UnicodeChar)
 		) {
 			if (len + 2 < size) {
+				timeout = INT32_MAX;
 				buffer[len] = (char)key.UnicodeChar;
 				buffer[len + 1] = 0;
 				CHAR16 wch[2] = { key.UnicodeChar, 0 };
