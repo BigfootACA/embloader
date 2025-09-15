@@ -45,6 +45,10 @@ menu:
   save-default: true
 
 loaders:
+  efishell:
+    title: Enter UEFI Shell
+    type: efi
+    path: /efi-shell.efi
   efisetup:
     title: "Reboot into Firmware Setup"
     type: "efisetup"

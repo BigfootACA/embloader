@@ -12,6 +12,18 @@ IMAGE_PATH="$BUILD_DIR/$IMAGE_NAME"
 if [ -z "$EDK2_TARGET" ]; then
 	export EDK2_TARGET=RELEASE
 fi
+if [ -z "$ARCH" ]; then
+	export ARCH="$(uname -m)"
+fi
+case "$ARCH" in
+	x86_64|x64|amd64) export EDK2_ARCH=X64 ;;
+	aarch64|arm64|armv8a|armv8l) export EDK2_ARCH=AARCH64 ;;
+	i386|i486|i586|i686|x86|ia32) export EDK2_ARCH=IA32 ;;
+	riscv64) export EDK2_ARCH=RISCV64 ;;
+	*) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
+esac
+typeset -l EDK2_LARCH
+export EDK2_LARCH="$EDK2_ARCH"
 
 function cleanup() {
 	mountpoint -q "$MOUNT_POINT" 2>/dev/null && umount "$MOUNT_POINT" || true
@@ -96,6 +108,10 @@ function pack_boot(){
 	fi
 	if [ -f /boot/initramfs-linux.img ]; then
 		cp /boot/initramfs-linux.img "$MOUNT_POINT/"
+	fi
+
+	if [ -f "/usr/share/edk2-shell/$EDK2_LARCH/Shell_Full.efi" ]; then
+		cp "/usr/share/edk2-shell/$EDK2_LARCH/Shell_Full.efi" "$MOUNT_POINT/efi-shell.efi"
 	fi
 
 	sync
