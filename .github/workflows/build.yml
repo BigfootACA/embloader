@@ -42,7 +42,14 @@ jobs:
     - name: Build Debian package
       run: |
         dpkg-buildpackage -b
-        mv ../*.deb .
+        cp ../*.deb .
+        case "${{ matrix.arch }}" in
+          amd64) EFI_ARCH=X64 ;;
+          arm64) EFI_ARCH=AARCH64 ;;
+          *) echo "Unsupported architecture: ${{ matrix.arch }}" ; exit 1 ;;
+        esac
+        cp build/Build/embloader/RELEASE_GCC5/${EFI_ARCH}/embloader.efi .
+        cp build/Build/embloader/RELEASE_GCC5/${EFI_ARCH}/embloader.debug .
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
@@ -50,7 +57,7 @@ jobs:
         name: embloader-${{ matrix.arch }}
         path: |
           *.deb
-          build/Build/embloader/RELEASE_GCC5/*/embloader.efi
-          build/Build/embloader/RELEASE_GCC5/*/embloader.debug
+          embloader.efi
+          embloader.debug
         retention-days: 30
         if-no-files-found: error
