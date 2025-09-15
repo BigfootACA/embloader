@@ -25,7 +25,7 @@ static EFI_DEVICE_PATH_PROTOCOL *find_path(embloader_loader *loader) {
 	if ((val = confignode_path_get_string(
 		loader->node, "path", NULL, NULL
 	))) {
-		ret = efi_device_path_append_filepath(NULL, val);
+		ret = efi_device_path_append_filepath(g_embloader.dir.dp, val);
 		free(val);
 		return ret;
 	}
