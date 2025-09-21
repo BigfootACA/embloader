@@ -84,3 +84,4 @@ Thumbs.db
 .env.local
 test-results/
 coverage/
+*.pkg.tar.*

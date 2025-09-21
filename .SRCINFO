@@ -1,0 +1,19 @@
+pkgbase = embloader
+	pkgdesc = Embedded Bootloader
+	pkgver = 0.1
+	pkgrel = 1
+	url = https://github.com/BigfootACA/embloader
+	arch = x86_64
+	arch = aarch64
+	license = GPL-2.0-or-later
+	makedepends = gcc
+	makedepends = git
+	makedepends = make
+	makedepends = nasm
+	makedepends = python
+	options = !debug
+	options = !strip
+	source = build.sh
+	md5sums = SKIP
+
+pkgname = embloader
