@@ -1,6 +1,7 @@
 #include <Uefi.h>
 #include <Protocol/LoadFile2.h>
 #include <Protocol/DevicePath.h>
+#include <Library/MemoryAllocationLib.h>
 #include <Library/UefiBootServicesTableLib.h>
 #include <inttypes.h>
 #include "linuxboot.h"
@@ -130,7 +131,7 @@ static int free_initramfs_file(void *p) {
 	struct initramfs_file *f = (struct initramfs_file*)p;
 	if (!f) return -EINVAL;
 	if (f->name) free(f->name);
-	if (f->data) free(f->data);
+	if (f->data) FreePages(f->data, EFI_SIZE_TO_PAGES(f->size));
 	memset(f, 0, sizeof(*f));
 	free(f);
 	return 0;
@@ -158,7 +159,7 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 		if (!initramfs) continue;
 		ptr = NULL, len = 0;
 		log_info("loading initramfs %s", initramfs);
-		status = efi_file_open_read_all(
+		status = efi_file_open_read_pages(
 			info->root, initramfs, &ptr, &len
 		);
 		if (EFI_ERROR(status)) {
