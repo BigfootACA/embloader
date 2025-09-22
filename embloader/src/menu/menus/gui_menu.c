@@ -5,6 +5,7 @@
 #include "lvgl.h"
 #include "log.h"
 #include "efi-utils.h"
+#include "efi-console-control.h"
 #include "file-utils.h"
 #include <Library/UefiBootServicesTableLib.h>
 #include <Protocol/GraphicsOutput.h>
@@ -430,6 +431,22 @@ static void serial_alt_init(struct gui_menu_ctx *ctx) {
 	printf_serial(ctx, "\r\nEmbedded Boot Loader GUI Menu Serial Alternative\r\n");
 }
 
+static void set_graphics_mode(bool enable) {
+        EFI_CONSOLE_CONTROL_PROTOCOL *ctrl = NULL;
+        EFI_CONSOLE_CONTROL_SCREEN_MODE new, old;
+        BOOLEAN uga_exists, stdin_locked;
+        EFI_STATUS status;
+        status = gBS->LocateProtocol(&gEfiConsoleControlProtocolGuid, NULL, (void **) &ctrl);
+        if (EFI_ERROR(status)) return;
+        status = ctrl->GetMode(ctrl, &old, &uga_exists, &stdin_locked);
+        if (EFI_ERROR(status)) return;
+        new = enable ? EfiConsoleControlScreenGraphics : EfiConsoleControlScreenText;
+        if (new == old) return;
+        status = ctrl->SetMode(ctrl, new);
+        gST->ConOut->EnableCursor(gST->ConOut, !enable);
+}
+
+
 /**
  * @brief Start the graphical user interface menu for boot loader selection
  *
@@ -458,6 +475,7 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected) {
 	serial_alt_init(&ctx);
 	log_info("lvgl gui menu started");
 	ctx.running = true;
+	set_graphics_mode(true);
 	if (!load_xml_from("menu-main", "menu.gui.xml-main", "menu-main.xml")) goto done;
 	if (!load_xml_from("menu-item", "menu.gui.xml-item", "menu-item.xml")) goto done;
 	if (!draw_menu_main(&ctx)) goto done;
@@ -470,6 +488,8 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected) {
 		lv_timer_handler();
 	}
 done:
+	lv_deinit();
+	set_graphics_mode(false);
 	memset(&px, 0, sizeof(px));
 	ctx.gop->Blt(
 		ctx.gop, &px, EfiBltVideoFill, 0, 0, 0, 0,
