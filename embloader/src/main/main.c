@@ -24,11 +24,15 @@ static int config_print(const char *str) {
 	return 0;
 }
 
+#ifndef EMBLOADER_VERSION
+#error EMBLOADER_VERSION is not set
+#endif
+
 EFI_STATUS EFIAPI efi_main(
 	EFI_HANDLE ImageHandle,
 	EFI_SYSTEM_TABLE *SystemTable
 ){
-	log_info("embloader (Embedded Bootloader) v0.1");
+	log_info("embloader (Embedded Bootloader) version " EMBLOADER_VERSION);
 	log_debug("function efi_main at %p", efi_main);
 	embloader_init();
 	find_embloader_folder(&g_embloader.dir);

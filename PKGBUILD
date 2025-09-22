@@ -1,8 +1,7 @@
 # Maintainer: BigfootACA <bigfoot@classfun.cn>
 
 pkgname=embloader
-_pkgver=0.1
-pkgver=$_pkgver
+pkgver=0.1
 pkgrel=1
 pkgdesc="Embedded Bootloader"
 arch=(x86_64 aarch64)
@@ -15,18 +14,7 @@ md5sums=(SKIP)
 
 pkgver(){
 	cd "$(dirname "$(realpath "$srcdir/build.sh")")"
-	ver="$(git describe --long --tags 2>/dev/null | sed 's/^[vV]//;s/\([^-]*-g\)/r\1/;s/-/./g')"
-	if ! [ -z "$ver" ]; then
-		echo "$ver"
-		return
-	fi
-	cnt="$(git rev-list --count HEAD 2>/dev/null||true)"
-	sha="$(git rev-parse --short HEAD 2>/dev/null||true)"
-	if [ -n "$cnt" ] && [ -n "$sha" ]; then
-		echo "${_pkgver}.r${cnt}.${sha}"
-		return
-	fi
-	echo "${_pkgver}"
+	bash scripts/version.sh
 }
 
 build(){

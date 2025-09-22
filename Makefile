@@ -43,6 +43,7 @@ build-edk2: patched
 		-t $(EDK2_TOOLCHAIN) \
 		-b $(EDK2_TARGET) \
 		-D DISABLE_NEW_DEPRECATED_INTERFACES=TRUE \
+		-D EMBLOADER_VERSION=\"$(shell bash scripts/version.sh)\" \
 		-p embloader/embloader.dsc
 
 qemu-x86_64: build-edk2
