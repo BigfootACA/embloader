@@ -19,12 +19,12 @@
 EFI_STATUS linux_load_kernel(linux_data *data, linux_bootinfo *info) {
 	EFI_STATUS status;
 	char buff[64];
-	void *ptr = NULL, *pages = NULL;
-	size_t len = 0, pcnt = 0;
+	void *ptr = NULL;
+	size_t len = 0;
 	if (!data || !info || !info->kernel)
 		return EFI_INVALID_PARAMETER;
 	log_info("loading kernel %s", info->kernel);
-	status = efi_file_open_read_all(
+	status = efi_file_open_read_pages(
 		info->root, info->kernel, &ptr, &len
 	);
 	if (EFI_ERROR(status)) {
@@ -32,7 +32,7 @@ EFI_STATUS linux_load_kernel(linux_data *data, linux_bootinfo *info) {
 			"load kernel %s failed: %s",
 			info->kernel, efi_status_to_string(status)
 		);
-		goto fail;
+		return status;
 	}
 	log_info(
 		"loaded kernel %s size %s (%" PRIu64 " bytes)",
@@ -40,31 +40,12 @@ EFI_STATUS linux_load_kernel(linux_data *data, linux_bootinfo *info) {
 		format_size_float(buff, len),
 		(uint64_t)len
 	);
-	pages = (void*)UINT32_MAX;
-	pcnt = EFI_SIZE_TO_PAGES(len);
-	status = gBS->AllocatePages(
-		AllocateMaxAddress, EfiLoaderData,
-		pcnt, (UINTN*)&pages
-	);
-	if (EFI_ERROR(status)) {
-		pages = NULL, pcnt = 0;
-		log_error(
-			"alloc pages for kernel %s failed: %s",
-			info->kernel, efi_status_to_string(status)
-		);
-		goto fail;
-	}
-	memcpy(pages, ptr, len);
-	free(ptr);
-	data->kernel = pages;
-	data->kernel_size = EFI_PAGES_TO_SIZE(pcnt);
+	data->kernel = ptr;
+	data->kernel_size = len;
 	log_info(
 		"kernel %s at %p with %" PRIu64 " pages",
-		info->kernel, data->kernel, (uint64_t)pcnt
+		info->kernel, data->kernel,
+		(uint64_t)EFI_SIZE_TO_PAGES(len)
 	);
 	return EFI_SUCCESS;
-fail:
-	if (pages) gBS->FreePages((UINTN)pages, pcnt);
-	if (ptr) free(ptr);
-	return status;
 }
