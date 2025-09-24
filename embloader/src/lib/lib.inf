@@ -32,4 +32,5 @@
   readline.c
   str-utils.c
   string.c
+  ticks.c
   vm.c
