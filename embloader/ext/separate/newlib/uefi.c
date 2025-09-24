@@ -8,36 +8,51 @@
 #include <Library/UefiRuntimeServicesTableLib.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <errno.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+#include <assert.h>
 #include "encode.h"
 
+#define MAGIC 0xDEADBEEF
 struct memblk {
-	size_t size;
+	uint32_t magic;
+	uint32_t size;
 	char data[];
 };
 
 void _free_r(struct _reent *r, void *ptr){
-	struct memblk *blk = BASE_CR(ptr, struct memblk, data);
-	FreePool(blk);
+	struct memblk *blk_hdr = BASE_CR(ptr, struct memblk, data);
+	struct memblk *blk_end = ptr + blk_hdr->size;
+	assert (blk_hdr->magic == MAGIC);
+	assert (blk_end->magic == MAGIC);
+	assert (blk_end->size == blk_hdr->size);
+	FreePool(blk_hdr);
 }
 
 void* _malloc_r(struct _reent *r, size_t size) {
-	struct memblk *blk = AllocatePool(sizeof(struct memblk) + size);
-	if (!blk) return NULL;
-	memset(blk, 0, sizeof(struct memblk) + size);
-	blk->size = size;
-	return blk->data;
+	assert(size < UINT32_MAX);
+	struct memblk *blk_hdr = AllocatePool(sizeof(struct memblk) * 2 + size);
+	struct memblk *blk_end = (void*)blk_hdr + sizeof(struct memblk) + size;
+	if (!blk_hdr) return NULL;
+	memset(blk_hdr, 0, sizeof(struct memblk) * 2 + size);
+	blk_hdr->magic = MAGIC;
+	blk_hdr->size = size;
+	blk_end->magic = MAGIC;
+	blk_end->size = size;
+	return blk_hdr->data;
 }
 
 void* _calloc_r(struct _reent *r, size_t nmemb, size_t size) {
+	ASSERT(size < UINT32_MAX);
 	void *b = _malloc_r(r, nmemb * size);
 	if (b) memset(b, 0, nmemb * size);
 	return b;
 }
 
 void* _realloc_r(struct _reent *r, void *ptr, size_t size) {
+	ASSERT(size < UINT32_MAX);
 	if (!ptr) return _malloc_r(r, size);
 	struct memblk *blk = BASE_CR(ptr, struct memblk, data);
 	void *newptr = _malloc_r(r, size);
