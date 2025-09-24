@@ -4,6 +4,7 @@
 #include "menu.h"
 #include "lvgl.h"
 #include "log.h"
+#include "ticks.h"
 #include "efi-utils.h"
 #include "efi-console-control.h"
 #include "file-utils.h"
@@ -446,6 +447,10 @@ static void set_graphics_mode(bool enable) {
         gST->ConOut->EnableCursor(gST->ConOut, !enable);
 }
 
+static void uefi_delay(uint32_t ms) {
+	if (ms == 0) return;
+	gBS->Stall(ms * 1000);
+}
 
 /**
  * @brief Start the graphical user interface menu for boot loader selection
@@ -472,6 +477,9 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected) {
 	ctx.timeout = g_embloader.menu->timeout;
 	status = gui_init(&ctx);
 	if (EFI_ERROR(status)) return status;
+	if (ticks_usec() > 0)
+		lv_tick_set_cb(ticks_msec_u32);
+	lv_delay_set_cb(uefi_delay);
 	serial_alt_init(&ctx);
 	log_info("lvgl gui menu started");
 	ctx.running = true;
