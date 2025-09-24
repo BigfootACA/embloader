@@ -147,7 +147,6 @@ function run_qemu_aarch64_debug_real(){
 		-device usb-tablet \
 		-bios local/QEMU_EFI.fd \
 		-drive file=$IMAGE_PATH,if=virtio,format=raw \
-		-drive file=/tmp/esp.img,if=virtio,format=raw \
 		-s
 }
 
@@ -169,8 +168,7 @@ function run_qemu_aarch64_release(){
 		-bios /usr/share/edk2/aarch64/QEMU_CODE.fd \
 		-cpu host \
 		-enable-kvm \
-		-drive file=$IMAGE_PATH,if=virtio,format=raw \
-		-drive file=/tmp/esp.img,if=virtio,format=raw
+		-drive file=$IMAGE_PATH,if=virtio,format=raw
 }
 
 function run_qemu_aarch64(){
