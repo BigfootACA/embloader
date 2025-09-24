@@ -225,3 +225,29 @@ bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
 	}
 	return token_count > 0;
 }
+
+/**
+ * @brief Parse timeout value from a string.
+ *
+ * Supports integer seconds and special values:
+ * "menu-force" (-1), "menu-hidden" (0), "menu-disabled" (0).
+ *
+ * @param str the input string to parse (must not be NULL)
+ * @param len the length of the input string
+ * @param out pointer to store the parsed timeout value (must not be NULL)
+ * @return true on successful parsing, false on invalid input
+ */
+bool sdboot_parse_timeout(
+	const char *str,
+	size_t len,
+	int *out
+) {
+	if (str_case_match(str, len, "menu-force"))
+		*out = -1;
+	else if (str_case_match(str, len, "menu-hidden"))
+		*out = 0;
+	else if (str_case_match(str, len, "menu-disabled"))
+		*out = 0;
+	else return sdboot_parse_int("timeout", str, len, out);
+	return true;
+}

@@ -31,6 +31,11 @@ extern bool sdboot_parse_arch(
 );
 extern bool sdboot_parse_string(const char *str, size_t len, char **out);
 extern bool sdboot_parse_string_list(const char *str, size_t len, list **out);
+extern bool sdboot_parse_timeout(
+	const char *str,
+	size_t len,
+	int *out
+);
 extern bool sdboot_boot_parse_menu_one(
 	sdboot_boot_menu *menu,
 	const char *key, size_t key_len,

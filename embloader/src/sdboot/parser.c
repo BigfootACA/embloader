@@ -24,7 +24,7 @@ bool sdboot_boot_parse_menu_one(
 	if (str_case_match(key, key_len, "default"))
 		return sdboot_parse_string(value, value_len, &menu->default_entry);
 	if (str_case_match(key, key_len, "timeout"))
-		return sdboot_parse_int("timeout", value, value_len, &menu->timeout);
+		return sdboot_parse_timeout(value, value_len, &menu->timeout);
 	if (str_case_match(key, key_len, "console-mode"))
 		return sdboot_parse_console_mode(value, value_len, &menu->console_mode);
 	if (str_case_match(key, key_len, "editor"))
