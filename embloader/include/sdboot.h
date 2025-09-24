@@ -7,6 +7,8 @@ typedef struct sdboot_boot_loader sdboot_boot_loader;
 typedef enum sdboot_console_mode sdboot_console_mode;
 typedef enum sdboot_secureboot_enroll sdboot_secureboot_enroll;
 
+#define LOADER_GUID { 0x4a67b082, 0x0a4c, 0x41cf, { 0xb6, 0xc7, 0x44, 0x0b, 0x29, 0xbb, 0x8c, 0x4f } }
+
 /**
  * Console display modes for boot menu
  */
@@ -134,4 +136,5 @@ extern bool sdboot_boot_loader_check(sdboot_boot_loader *loader);
 /** Execute/invoke the specified boot loader entry */
 extern EFI_STATUS sdboot_boot_loader_invoke(sdboot_menu *menu, sdboot_boot_loader *loader);
 
+extern EFI_GUID gLoaderGuid;
 #endif
