@@ -10,6 +10,7 @@
 #include "bootmenu.h"
 #include "sdboot.h"
 #include "configfile.h"
+#include "ticks.h"
 #include "log.h"
 
 embloader g_embloader = {};
@@ -35,6 +36,7 @@ EFI_STATUS EFIAPI efi_main(
 	log_info("embloader (Embedded Bootloader) version " EMBLOADER_VERSION);
 	log_debug("function efi_main at %p", efi_main);
 	embloader_init();
+	g_embloader.start_time = ticks_usec();
 	find_embloader_folder(&g_embloader.dir);
 	if (g_embloader.dir.dir && !embloader_load_configs())
 		log_warning("no config files loaded");

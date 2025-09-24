@@ -25,6 +25,7 @@ struct embloader {
 	fdt fdt;
 	embloader_menu *menu;
 	sdboot_menu *sdboot;
+	uint64_t start_time;
 };
 extern embloader g_embloader;
 extern void find_embloader_folder(embloader_dir *dir);
