@@ -33,4 +33,5 @@
   str-utils.c
   string.c
   ticks.c
+  variables.c
   vm.c
