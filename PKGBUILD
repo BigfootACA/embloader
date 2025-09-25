@@ -1,7 +1,7 @@
 # Maintainer: BigfootACA <bigfoot@classfun.cn>
 
 pkgname=embloader
-pkgver=0.1
+pkgver=0.2
 pkgrel=1
 pkgdesc="Embedded Bootloader"
 arch=(x86_64 aarch64)

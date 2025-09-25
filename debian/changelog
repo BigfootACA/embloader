@@ -1,3 +1,25 @@
+embloader (0.2) unstable; urgency=medium
+
+  e29b132 scripts: run.sh: remove esp.img
+  6fbb5f4 embloader: ext: separate: newlib: uefi.c: add memory allocate magic
+  76c376b embloader: sdboot: parser.c: add menu-force, menu-hidden, menu-disabled for timeout
+  5e31b14 embloader: include: sdboot.h: add gLoaderGuid
+  fabe2a2 embloader: menu: menus: gui_menu.c: add ticks and delay callback
+  30e0053 embloader: main: main.c: save startup time
+  cafc47e embloader: lib: add variables.c
+  81da3ce embloader: lib: add ticks.c
+  59a9c10 embloader: lib: add vm.c
+  98606ea embloader: add version display
+  85079fe embloader: linux: kernel.c: use efi_file_open_read_pages to fix U-Boot EFI load slow
+  4785cb8 embloader: linux: initramfs.c: use efi_file_open_read_pages to fix U-Boot EFI load slow
+  2339865 embloader: linux: preboot.c: apply devicetree fixup when install fdt
+  7a9b51b embloader: lib: file-utils.c: add efi_file_get_size efi_file_chunked_read efi_file_read_pages efi_file_open_read_pages
+  767ffbf embloader: menu: menus: gui_menu.c: switch screen to graphics mode
+  0195df6 embloader: add efi console control protocol
+  a0d7c4b add PKGBUILD for archlinux package
+
+ -- BigfootACA <bigfoot@classfun.cn>  Thu, 25 Sep 2025 19:18:22 +0800
+
 embloader (0.1) unstable; urgency=medium
 
   * Initial release of embloader
