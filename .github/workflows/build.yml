@@ -7,14 +7,22 @@ on:
 
 jobs:
   build-deb:
+    runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         include:
           - arch: amd64
-            runner: ubuntu-latest
+            efi_arch: X64
+            distro: "ubuntu24.04"
           - arch: arm64
-            runner: ubuntu-latest-arm64
-    runs-on: ${{ matrix.runner }}
+            run_arch: aarch64
+            efi_arch: AARCH64
+            distro: "ubuntu24.04"
+          # - arch: riscv64
+          #   run_arch: riscv64
+          #   efi_arch: RISCV64
+          #   distro: "ubuntu24.04"
 
     steps:
     - name: Checkout code
@@ -23,7 +31,40 @@ jobs:
         submodules: recursive
         fetch-depth: 1
 
-    - name: Set up dependencies
+    - name: Set up QEMU
+      uses: docker/setup-qemu-action@v3
+      if: matrix.arch != 'amd64'
+
+    - name: Build inside ${{ matrix.arch }} container (QEMU)
+      uses: uraimo/run-on-arch-action@v3
+      if: matrix.arch != 'amd64'
+      with:
+        arch: ${{ matrix.run_arch }}
+        distro: ${{ matrix.distro }}
+        githubToken: ${{ github.token }}
+        install: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            debhelper \
+            devscripts \
+            build-essential \
+            gcc \
+            g++ \
+            git \
+            make \
+            nasm \
+            python3 \
+            uuid-dev \
+            fakeroot
+        run: |
+          git config --global --add safe.directory $PWD
+          dpkg-buildpackage -b
+          cp ../*.deb .
+          cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.efi .
+          cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.debug .
+
+    - name: Build on amd64
+      if: matrix.arch == 'amd64'
       run: |
         sudo apt-get update
         sudo apt-get install -y \
@@ -39,17 +80,10 @@ jobs:
           fakeroot \
           devscripts
 
-    - name: Build Debian package
-      run: |
         dpkg-buildpackage -b
         cp ../*.deb .
-        case "${{ matrix.arch }}" in
-          amd64) EFI_ARCH=X64 ;;
-          arm64) EFI_ARCH=AARCH64 ;;
-          *) echo "Unsupported architecture: ${{ matrix.arch }}" ; exit 1 ;;
-        esac
-        cp build/Build/embloader/RELEASE_GCC5/${EFI_ARCH}/embloader.efi .
-        cp build/Build/embloader/RELEASE_GCC5/${EFI_ARCH}/embloader.debug .
+        cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.efi .
+        cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.debug .
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
