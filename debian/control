@@ -34,3 +34,17 @@ Description: Embedded Bootloader
   - Configurable boot menus
   - EFI stub loader support
   - Initramfs loading
+
+Package: sdboot-is-embloader
+Architecture: any
+Depends: embloader (= ${binary:Version}),
+         systemd-boot,
+         ${misc:Depends}
+Description: Make systemd-boot use embloader
+ This package diverts the systemd-boot EFI binaries to use embloader instead.
+ It provides drop-in compatibility with systemd-boot while using embloader's
+ enhanced features like device tree overlay support and SMBIOS-based device
+ detection.
+ .
+ The original systemd-boot binaries are preserved with .distrib suffix and
+ can be restored by removing this package.

@@ -1,0 +1,42 @@
+#!/bin/sh
+set -e
+
+PACKAGE="sdboot-is-embloader"
+
+case "$1" in
+    remove|deconfigure)
+        ARCH=$(dpkg --print-architecture)
+        case "$ARCH" in
+            amd64)
+                SDBOOT_EFI="systemd-bootx64.efi"
+                ;;
+            arm64)
+                SDBOOT_EFI="systemd-bootaa64.efi"
+                ;;
+            i386)
+                SDBOOT_EFI="systemd-bootia32.efi"
+                ;;
+            riscv64)
+                SDBOOT_EFI="systemd-bootriscv64.efi"
+                ;;
+            *)
+                echo "Unsupported architecture: $ARCH" >&2
+                exit 1
+                ;;
+        esac
+
+        SDBOOT_PATH="/usr/lib/systemd/boot/efi/$SDBOOT_EFI"
+
+        if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
+            rm -f "$SDBOOT_PATH"
+        fi
+
+        if dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
+            dpkg-divert --package "$PACKAGE" --rename --remove "$SDBOOT_PATH"
+        fi
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
