@@ -14,7 +14,6 @@
 EFI_STATUS linux_load_bootargs(linux_data *data, linux_bootinfo *info) {
 	list *p;
 	if (!data || !info) return EFI_INVALID_PARAMETER;
-	if (!info->bootargs) return EFI_SUCCESS;
 	list *bootargs = NULL;
 	confignode *np = confignode_map_get(g_embloader.config, "profiles");
 	if (np && (p = list_last(g_embloader.profiles))) do {
@@ -33,8 +32,10 @@ EFI_STATUS linux_load_bootargs(linux_data *data, linux_bootinfo *info) {
 		char *arg = confignode_value_get_string(iter.node, NULL, NULL);
 		if (arg) list_obj_add_new(&bootargs, arg);
 	}
-	list *n = list_duplicate_chars(info->bootargs, NULL);
-	if (n) list_obj_add(&bootargs, n);
+	if (info->bootargs) {
+		list *n = list_duplicate_chars(info->bootargs, NULL);
+		if (n) list_obj_add(&bootargs, n);
+	}
 	if (data->bootargs) free(data->bootargs), data->bootargs = NULL;
 	data->bootargs = list_to_string(bootargs, " ");
 	log_info("loaded bootargs %s", data->bootargs);
