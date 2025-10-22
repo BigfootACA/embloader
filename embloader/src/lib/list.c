@@ -397,7 +397,7 @@ char* list_string_append(list* lst, char* buff, size_t len, char* sep) {
 	if ((l = list_first(lst))) do {
 		LIST_DATA_DECLARE(str, l, char*);
 		if (!str || !str[0]) continue;
-		if (sep) strlcat(buff, sep, len);
+		if (sep && buff[0]) strlcat(buff, sep, len);
 		strlcat(buff, str, len);
 	} while ((l = l->next));
 	return buff;
