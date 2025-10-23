@@ -11,20 +11,17 @@
  * @return linux_bootinfo* Pointer to parsed linux_bootinfo structure, or NULL on failure
  */
 linux_bootinfo* linux_bootinfo_parse(confignode *node) {
-	char *v;
+	list *q;
 	linux_bootinfo *info = malloc(sizeof(linux_bootinfo));
 	if (!info) return NULL;
 	memset(info, 0, sizeof(linux_bootinfo));
 	info->kernel = confignode_path_get_string(node, "kernel", NULL, NULL);
-	confignode_path_foreach(iter1, node, "initramfs") {
-		v = confignode_value_get_string(iter1.node, NULL, NULL);
-		if (v) list_obj_add_new(&info->initramfs, v);
-	}
-	confignode_path_foreach(iter2, node, "bootargs") {
-		v = confignode_value_get_string(iter2.node, NULL, NULL);
-		list *args = string_to_list_by_space(v);
-		list_obj_add(&info->bootargs, args);
-	}
+	if ((q = confignode_path_get_string_or_list_to_list(
+		node, "initramfs", NULL
+	))) list_obj_add(&info->initramfs, q);
+	if ((q = confignode_path_get_string_or_list_to_list(
+		node, "bootargs", NULL
+	))) list_obj_add(&info->bootargs, q);
 	confignode_path_foreach(iter3, node, "overlays") {
 		linux_overlay ovl;
 		memset(&ovl, 0, sizeof(ovl));
