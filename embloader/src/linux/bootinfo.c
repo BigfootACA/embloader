@@ -64,6 +64,7 @@ void linux_bootinfo_clean(linux_bootinfo *info) {
 	if (!info) return;
 	if (info->kernel) free(info->kernel);
 	if (info->devicetree) free(info->devicetree);
+	if (info->bootargs_override) free(info->bootargs_override);
 	if (info->initramfs)
 		list_free_all_def(info->initramfs);
 	if (info->bootargs)

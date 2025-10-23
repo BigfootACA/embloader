@@ -16,6 +16,7 @@ struct linux_bootinfo {
 	char *kernel;
 	list *initramfs;
 	list *bootargs;
+	char *bootargs_override;
 	char *devicetree;
 	list *dtoverlay;
 };
@@ -37,6 +38,8 @@ extern bool linux_apply_dtbo(const char *dtbo_name, fdt base, fdt dtbo);
 extern bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *dtbo_dir);
 extern bool linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir);
 extern bool linux_dtbo_write_overrides(fdt fdt, confignode *overrides);
+extern char* linux_prepare_bootargs(list *def_bootargs);
+extern char* linux_bootinfo_prepare_bootargs(linux_bootinfo *info);
 extern EFI_STATUS linux_load_kernel(linux_data *data, linux_bootinfo *info);
 extern EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info);
 extern EFI_STATUS linux_load_bootargs(linux_data *data, linux_bootinfo *info);

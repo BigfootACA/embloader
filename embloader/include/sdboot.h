@@ -68,6 +68,7 @@ struct sdboot_boot_loader {
 	char *devicetree;        ///< Device tree blob file
 	list *dtoverlay;         ///< List of device tree overlays
 	embloader_arch arch;     ///< Target EFI architecture
+	embloader_loader *item;  ///< Associated loader entry
 };
 
 /**

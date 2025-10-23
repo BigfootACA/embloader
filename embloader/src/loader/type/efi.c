@@ -43,7 +43,8 @@ static EFI_DEVICE_PATH_PROTOCOL *find_path(embloader_loader *loader) {
  */
 EFI_STATUS embloader_loader_boot_efi(embloader_loader *loader) {
 	if (!loader || !loader->node) return EFI_INVALID_PARAMETER;
-	char *cmdline = confignode_path_get_string(loader->node, "cmdline", NULL, NULL);
+	char *cmdline = loader->bootargs ? strdup(loader->bootargs) :
+		confignode_path_get_string(loader->node, "cmdline", NULL, NULL);
 	EFI_DEVICE_PATH_PROTOCOL *dp = find_path(loader);
 	if (!dp) return EFI_LOAD_ERROR;
 	char *dpt = efi_device_path_to_text(dp);

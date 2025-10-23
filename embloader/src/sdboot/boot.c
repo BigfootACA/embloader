@@ -21,7 +21,8 @@ linux_bootinfo* sdboot_boot_loader_to_linux_bootinfo(sdboot_boot_loader *loader)
 	info->root = loader->root;
 	if (loader->kernel) info->kernel = strdup(loader->kernel);
 	if (loader->initramfs) info->initramfs = list_duplicate_chars(loader->initramfs, NULL);
-	if (loader->options) info->bootargs = list_duplicate_chars(loader->options, NULL);
+	if (loader->options) info->bootargs = loader->item && loader->item->bootargs ?
+		list_new_strdup(loader->item->bootargs) : list_duplicate_chars(loader->options, NULL);
 	if (loader->devicetree) info->devicetree = strdup(loader->devicetree);
 	if (loader->dtoverlay && (p = list_first(loader->dtoverlay))) do {
 		LIST_DATA_DECLARE(item, p, char*);
@@ -60,7 +61,8 @@ EFI_STATUS sdboot_boot_loader_invoke(sdboot_menu *menu, sdboot_boot_loader *load
 			log_error("failed to create efi device path for %s", loader->efi);
 			return EFI_LOAD_ERROR;
 		}
-		char *args = list_to_string(loader->options, " ");
+		char *args = loader->item && loader->item->bootargs ?
+			strdup(loader->item->bootargs) : list_to_string(loader->options, " ");
 		EFI_STATUS status = embloader_start_efi(dp, NULL, 0, args);
 		if (args) free(args);
 		FreePool(dp);

@@ -161,7 +161,11 @@ static EFI_STATUS sdboot_boot_add_items() {
 		loader->title = item->title ? strdup(item->title) : NULL;
 		loader->type = LOADER_SDBOOT;
 		loader->complete = true;
+		loader->editor = g_embloader.sdboot->menu.editor;
 		loader->extra = item;
+		item->item = loader;
+		if (item->options)
+			loader->bootargs = list_to_string(item->options, " ");
 		list_obj_add_new(&g_embloader.menu->loaders, loader);
 	} while ((p = p->next));
 	sdboot_items_sort();

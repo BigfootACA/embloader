@@ -76,6 +76,11 @@ void embloader_load_loader(confignode *node) {
 		free(loader);
 		return;
 	}
+	if (loader->type == LOADER_EFI) {
+		loader->bootargs = confignode_path_get_string_or_list(node, "cmdline", NULL, NULL);
+	} else if (loader->type == LOADER_LINUX_EFI) {
+		loader->bootargs = confignode_path_get_string_or_list(node, "bootargs", NULL, NULL);
+	}
 	list_obj_add_new(&g_embloader.menu->loaders, loader);
 }
 

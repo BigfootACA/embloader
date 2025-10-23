@@ -18,6 +18,8 @@ EFI_STATUS embloader_loader_boot_linux_efi(embloader_loader *loader) {
 		log_error("failed to parse linux-efi boot info");
 		return EFI_LOAD_ERROR;
 	}
+	if (loader->bootargs)
+		info->bootargs_override = strdup(loader->bootargs);
 	info->root = g_embloader.dir.root;
 	linux_data *data = linux_data_load(info);
 	if (!data) {

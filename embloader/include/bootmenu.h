@@ -38,8 +38,10 @@ struct embloader_loader {
 	char *title;
 	embloader_loader_type type;
 	bool complete;
+	bool editor;
 	int64_t priority;
 	confignode *node;
+	char *bootargs;
 	void *extra;
 };
 extern void embloader_load_loader(confignode *node);
