@@ -7,6 +7,11 @@
 #include <Guid/FileSystemInfo.h>
 #include <stdbool.h>
 #include <time.h>
+enum ansi_state {
+	STATE_NORMAL = 0,
+	STATE_ESC = 1,
+	STATE_CSI = 2,
+};
 extern EFI_HANDLE efi_get_parent_device(EFI_HANDLE handle);
 extern EFI_LOADED_IMAGE_PROTOCOL* efi_get_loaded_image(void);
 extern EFI_HANDLE efi_get_current_device(void);
@@ -24,6 +29,13 @@ extern const char* efi_status_to_string(EFI_STATUS st);
 extern const char* efi_status_to_short_string(EFI_STATUS st);
 extern const char* efi_memory_type_to_string(EFI_MEMORY_TYPE type);
 extern EFI_STATUS efi_wait_any_key(EFI_SIMPLE_TEXT_INPUT_PROTOCOL *in);
+extern bool efi_parse_ansi_sequence(
+	EFI_INPUT_KEY *key,
+	int *ansi_state,
+	char *ansi_sequence,
+	int *ansi_seq_len,
+	bool *esc_pending
+);
 extern EFI_STATUS efi_readline(
 	EFI_SIMPLE_TEXT_INPUT_PROTOCOL *in,
 	EFI_SIMPLE_TEXT_OUTPUT_PROTOCOL *out,
