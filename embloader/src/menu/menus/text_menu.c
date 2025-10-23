@@ -5,6 +5,45 @@
 #include "bootmenu.h"
 #include "embloader.h"
 #include "efi-utils.h"
+#include "str-utils.h"
+
+static void show_ask_editor(embloader_loader *item, uint64_t *flags) {
+	EFI_STATUS status;
+	char edit_input[8], *buffer;
+	if (!item->editor) return;
+	while (true) {
+		printf("Edit bootargs? (y/n): ");
+		fflush(stdout);
+		memset(edit_input, 0, sizeof(edit_input));
+		status = efi_readline(
+			gST->ConIn, gST->ConOut,
+			edit_input, sizeof(edit_input),
+			g_embloader.menu->timeout
+		);
+		if (EFI_ERROR(status)) return;
+		if (string_is_true(edit_input)) break;
+		if (string_is_false(edit_input)) return;
+		printf("Invalid choice '%s'\n", edit_input);
+		fflush(stdout);
+	}
+	if (flags) *flags |= EMBLOADER_FLAG_EDITED;
+	if (!(buffer = malloc(16384))) return;
+	memset(buffer, 0, 16384);
+	if (item->bootargs && item->bootargs[0])
+		strncpy(buffer, item->bootargs, 16383);
+	printf("Edit bootargs: ");
+	fflush(stdout);
+	status = efi_readline(
+		gST->ConIn, gST->ConOut,
+		buffer, 16384, INT32_MAX
+	);
+	if (EFI_ERROR(status)) {
+		free(buffer);
+		return;
+	}
+	if (item->bootargs) free(item->bootargs);
+	item->bootargs = buffer;
+}
 
 /**
  * @brief Display a simple text-based boot menu and handle user selection.
@@ -90,6 +129,7 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flag
 				choice, item->title ? item->title : "(unnamed)"
 			);
 			if (flags) *flags |= EMBLOADER_FLAG_USERSELECT;
+			show_ask_editor(item, flags);
 			*selected = item;
 			return EFI_SUCCESS;
 		} while ((p = p->next));
