@@ -10,6 +10,7 @@
 
 bool stringn_is_true(const char *string, size_t len) {
 	return
+		strncasecmp(string, "y", len) == 0 ||
 		strncasecmp(string, "ok", len) == 0 ||
 		strncasecmp(string, "on", len) == 0 ||
 		strncasecmp(string, "yes", len) == 0 ||
@@ -21,6 +22,7 @@ bool stringn_is_true(const char *string, size_t len) {
 
 bool stringn_is_false(const char *string, size_t len) {
 	return
+		strncasecmp(string, "n", len) == 0 ||
 		strncasecmp(string, "no", len) == 0 ||
 		strncasecmp(string, "off", len) == 0 ||
 		strncasecmp(string, "false", len) == 0 ||
