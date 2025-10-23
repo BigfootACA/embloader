@@ -1,0 +1,14 @@
+diff --git a/src/drivers/uefi/lv_uefi.h b/src/drivers/uefi/lv_uefi.h
+index 6302555c1..c3643b2d1 100644
+--- a/src/drivers/uefi/lv_uefi.h
++++ b/src/drivers/uefi/lv_uefi.h
+@@ -20,6 +20,9 @@
+         #elif defined(__aarch64__)
+             #define __LV_UEFI_ARCH_AARCH64__
+             #define __LV_UEFI_64BIT__
++        #elif defined(__riscv_xlen) && __riscv_xlen == 64
++            #define __LV_UEFI_ARCH_RISCV64__
++            #define __LV_UEFI_64BIT__
+         #else
+             #error Architecture is not supported
+         #endif
