@@ -122,7 +122,7 @@ void embloader_load_menu() {
 	menu->timeout = confignode_path_get_int(cfg, "menu.timeout", 10, NULL);
 	menu->save_default = confignode_path_get_bool(cfg, "menu.save-default", false, NULL);
 	menu->default_entry = confignode_path_get_string(cfg, "menu.default", NULL, NULL);
-	menu->title = confignode_path_get_string(cfg, "menu.title", "Embedded Bootloader", NULL);
+	menu->title = confignode_path_get_string(cfg, "menu.title", "", NULL);
 	confignode_path_foreach(iter, g_embloader.config, "loaders")
 		embloader_load_loader(iter.node);
 	embloader_sort_menu_loaders();
