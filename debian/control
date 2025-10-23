@@ -36,7 +36,7 @@ Description: Embedded Bootloader
   - Initramfs loading
 
 Package: sdboot-is-embloader
-Architecture: any
+Architecture: all
 Depends: embloader (= ${binary:Version}),
          systemd-boot,
          ${misc:Depends}
