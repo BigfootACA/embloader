@@ -37,6 +37,7 @@ struct gui_menu_ctx {
 	lv_group_t *group;
 	lv_obj_t *cursor;
 	list *items;
+	uint64_t flags;
 	EFI_HANDLE gop_handle;
 	lv_timer_t *timer;
 	EFI_GRAPHICS_OUTPUT_PROTOCOL *gop;
@@ -245,6 +246,7 @@ static void boot_event_cb(lv_event_t *e) {
 	if (!ctx) return;
 	lv_event_code_t code = lv_event_get_code(e);
 	if (code == LV_EVENT_CLICKED) {
+		ctx->flags |= EMBLOADER_FLAG_USERSELECT;
 		clear_timeout(ctx);
 		boot_item(ctx);
 	} else if (code == LV_EVENT_KEY) {
@@ -268,6 +270,7 @@ static void timer_cb(lv_timer_t *timer) {
 			loader->name ?: "null"
 		);
 		*(ctx->selected) = loader;
+		ctx->flags |= EMBLOADER_FLAG_AUTOBOOT;
 	}
 	boot_item(ctx);
 }
@@ -465,10 +468,11 @@ static void uefi_delay(uint32_t ms) {
  *                    EFI_UNSUPPORTED if GUI initialization failed,
  *                    EFI_ABORTED if user cancelled the selection
  */
-EFI_STATUS embloader_gui_menu_start(embloader_loader **selected) {
+EFI_STATUS embloader_gui_menu_start(embloader_loader **selected, uint64_t *flags) {
 	EFI_GRAPHICS_OUTPUT_BLT_PIXEL px;
 	struct gui_menu_ctx ctx;
 	EFI_STATUS status;
+	if (flags) *flags = 0;
 	if (!selected) return EFI_INVALID_PARAMETER;
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.selected = selected;
@@ -496,6 +500,7 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected) {
 		lv_timer_handler();
 	}
 done:
+	if (flags) *flags = ctx.flags;
 	lv_deinit();
 	set_graphics_mode(false);
 	memset(&px, 0, sizeof(px));

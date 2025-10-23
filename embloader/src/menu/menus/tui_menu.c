@@ -29,6 +29,7 @@ struct tui_context {
 	UINTN menu_end_row;
 	UINTN max_visible_items;
 	INTN timeout;
+	uint64_t flags;
 	bool have_timeout;
 	bool is_scroll_up;
 	bool is_scroll_down;
@@ -257,9 +258,10 @@ static bool filter_supports() {
  *         EFI_ABORTED if user cancelled the selection,
  *         other EFI errors on failure
  */
-EFI_STATUS embloader_tui_menu_start(embloader_loader **selected) {
+EFI_STATUS embloader_tui_menu_start(embloader_loader **selected, uint64_t *flags) {
 	struct tui_context ctx;
 	EFI_STATUS status;
+	if (flags) *flags = 0;
 	if (!g_embloader.menu || !selected) return EFI_INVALID_PARAMETER;
 	if (!filter_supports()) {
 		log_warning("this platform have bad console, skip TUI menu");
@@ -302,7 +304,10 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected) {
 		int read_count = 0;
 		while (true) {
 			status = read_once(&ctx);
-			if (*ctx.selected) return EFI_SUCCESS;
+			if (*ctx.selected) {
+				if (flags) *flags = ctx.flags;
+				return EFI_SUCCESS;
+			}
 			if (!EFI_ERROR(status)) {
 				read_count ++;
 				if (read_count >= 8) break;
@@ -312,6 +317,8 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected) {
 				if (read_count != 0) break;
 				if (ctx.timeout == 0 && ctx.have_timeout) {
 					*selected = ctx.def_loader;
+					ctx.flags |= EMBLOADER_FLAG_AUTOBOOT;
+					if (flags) *flags = ctx.flags;
 					return EFI_SUCCESS;
 				}
 				gBS->Stall(100000);
@@ -319,8 +326,10 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected) {
 				if (ctx.timeout % 1000 == 0) break;
 				continue;
 			}
+			if (flags) *flags = ctx.flags;
 			return status;
 		}
 	}
+	if (flags) *flags = ctx.flags;
 	return EFI_NOT_STARTED;
 }

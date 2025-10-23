@@ -19,8 +19,9 @@
  *         EFI_ABORTED if user cancelled the selection,
  *         other EFI errors on failure
  */
-EFI_STATUS embloader_text_menu_start(embloader_loader **selected) {
+EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flags) {
 	embloader_menu *menu = g_embloader.menu;
+	if (flags) *flags = 0;
 	if (!menu || !selected) return EFI_INVALID_PARAMETER;
 	*selected = NULL;
 	printf("\n");
@@ -70,6 +71,7 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected) {
 				def_num, def_loader->title ? def_loader->title : "(unnamed)"
 			);
 			*selected = def_loader;
+			if (flags) *flags |= EMBLOADER_FLAG_AUTOBOOT;
 			return EFI_SUCCESS;
 		}
 		if (EFI_ERROR(status)) return status;
@@ -87,6 +89,7 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected) {
 				"Choose option (%ld) %s\n\n",
 				choice, item->title ? item->title : "(unnamed)"
 			);
+			if (flags) *flags |= EMBLOADER_FLAG_USERSELECT;
 			*selected = item;
 			return EFI_SUCCESS;
 		} while ((p = p->next));

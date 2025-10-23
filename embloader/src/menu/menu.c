@@ -132,7 +132,7 @@ void embloader_load_menu() {
  * @return EFI_SUCCESS if a loader was selected, EFI_INVALID_PARAMETER for invalid
  *         parameters, EFI_UNSUPPORTED for unknown menu types, or error from menu implementation
  */
-EFI_STATUS embloader_menu_start(embloader_loader **selected) {
+EFI_STATUS embloader_menu_start(embloader_loader **selected, uint64_t *flags) {
 	if (!selected) return EFI_INVALID_PARAMETER;
 	*selected = NULL;
 	EFI_STATUS status = EFI_UNSUPPORTED;
@@ -140,25 +140,25 @@ EFI_STATUS embloader_menu_start(embloader_loader **selected) {
 		g_embloader.config, "menu.type", NULL, NULL
 	);
 	if (!menu) {
-		status = embloader_gui_menu_start(selected);
+		status = embloader_gui_menu_start(selected, flags);
 		if (status != EFI_UNSUPPORTED) return status;
-		status = embloader_hii_menu_start(selected);
+		status = embloader_hii_menu_start(selected, flags);
 		if (status != EFI_UNSUPPORTED) return status;
-		status = embloader_tui_menu_start(selected);
+		status = embloader_tui_menu_start(selected, flags);
 		if (status != EFI_UNSUPPORTED) return status;
-		status = embloader_text_menu_start(selected);
+		status = embloader_text_menu_start(selected, flags);
 		if (status != EFI_UNSUPPORTED) return status;
 		log_warning("no supported menu types available");
 		return EFI_UNSUPPORTED;
 	}
 	if (strcasecmp(menu, "text") == 0)
-		status = embloader_text_menu_start(selected);
+		status = embloader_text_menu_start(selected, flags);
 	else if (strcasecmp(menu, "tui") == 0)
-		status = embloader_tui_menu_start(selected);
+		status = embloader_tui_menu_start(selected, flags);
 	else if (strcasecmp(menu, "hii") == 0)
-		status = embloader_hii_menu_start(selected);
+		status = embloader_hii_menu_start(selected, flags);
 	else if (strcasecmp(menu, "gui") == 0)
-		status = embloader_gui_menu_start(selected);
+		status = embloader_gui_menu_start(selected, flags);
 	else log_warning("unknown menu type %s", menu);
 	if (menu) free(menu);
 	return status;
@@ -178,8 +178,9 @@ EFI_STATUS embloader_show_menu() {
 	while (true) {
 		embloader_load_ktype();
 		if (embloader_menu_is_complete()) {
+			uint64_t flags = 0;
 			embloader_loader *loader = NULL;
-			status = embloader_menu_start(&loader);
+			status = embloader_menu_start(&loader, &flags);
 			if (EFI_ERROR(status)) return status;
 			if (!loader) continue;
 			status = embloader_loader_boot(loader);

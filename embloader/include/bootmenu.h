@@ -1,6 +1,9 @@
 #ifndef BOOTMENU_H
 #define BOOTMENU_H
 #include "embloader.h"
+#define EMBLOADER_FLAG_AUTOBOOT     (1 << 0)
+#define EMBLOADER_FLAG_USERSELECT   (1 << 1)
+#define EMBLOADER_FLAG_EDITED       (1 << 2)
 typedef enum embloader_arch embloader_arch;
 typedef enum embloader_loader_type embloader_loader_type;
 typedef struct embloader_loader embloader_loader;
@@ -46,7 +49,7 @@ extern void embloader_load_menu();
 extern void embloader_sort_menu_loaders();
 extern embloader_loader_type embloader_menu_get_loader_type(const char *type_str);
 extern bool embloader_menu_is_complete();
-extern EFI_STATUS embloader_menu_start(embloader_loader **selected);
+extern EFI_STATUS embloader_menu_start(embloader_loader **selected, uint64_t *flags);
 extern EFI_STATUS embloader_show_menu();
 extern bool embloader_loader_is_reboot(embloader_loader *loader);
 extern bool embloader_loader_is_shutdown(embloader_loader *loader);
