@@ -58,6 +58,8 @@ typedef struct confignode_iter {
 	void* cur;        ///< Internal iterator state (list position)
 	confignode* root; ///< Root node being iterated over
 	confignode* node; ///< Current node in iteration (NULL when done)
+	const char *name; ///< Current key name (for MAP nodes)
+	int64_t index;    ///< Current index
 } confignode_iter;
 
 // Configuration file I/O functions
@@ -362,8 +364,17 @@ extern bool confignode_path_iter_start(
 	const char* path
 );
 
+/** Start iteration over child nodes at specified path */
+extern confignode_iter confignode_path_iter_start_ret(
+	confignode* node,
+	const char* path
+);
+
 /** Start iteration over child nodes of MAP or ARRAY node */
 extern bool confignode_iter_start(confignode_iter* iter, confignode* node);
+
+/** Start iteration over child nodes of MAP or ARRAY node */
+extern confignode_iter confignode_iter_start_ret(confignode* node);
 
 /** Advance iterator to next child node */
 extern bool confignode_iter_next(confignode_iter* iter);
@@ -375,14 +386,12 @@ extern void confignode_iter_reset(confignode_iter* iter);
 
 /** Iterate over all child nodes of a MAP or ARRAY node */
 #define confignode_foreach(_iter, _node) \
-	confignode_iter _iter; \
-	for (confignode_iter_start(&_iter, _node); \
-		confignode_iter_next(&_iter);)
+	for (confignode_iter _iter = confignode_iter_start_ret(_node); \
+		(_iter).node != NULL; confignode_iter_next(&_iter))
 
 /** Iterate over all child nodes at the specified path */
 #define confignode_path_foreach(_iter, _node, _path) \
-	confignode_iter _iter; \
-	for (confignode_path_iter_start(&_iter, _node, _path); \
-		confignode_iter_next(&_iter);)
+	for (confignode_iter _iter = confignode_path_iter_start_ret(_node, _path); \
+		(_iter).node != NULL; confignode_iter_next(&_iter))
 
 #endif

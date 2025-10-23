@@ -1,5 +1,4 @@
 #include "internal.h"
-#include "debugs.h"
 
 /**
  * @brief Start iteration over child nodes at a specific path.
@@ -27,6 +26,27 @@ bool confignode_path_iter_start(
 }
 
 /**
+ * @brief Start iteration at a path and return an iterator by value.
+ * This is a convenience function that combines path lookup with iterator
+ * initialization and returns the iterator by value. Useful for inline iterator
+ * initialization in for loops or variable declarations. Only works for MAP and
+ * ARRAY nodes at the specified path.
+ *
+ * @param node the root node to start path lookup from
+ * @param path the path string pointing to the node to iterate over
+ * @return initialized iterator structure positioned at the start
+ *
+ */
+confignode_iter confignode_path_iter_start_ret(
+	confignode* node,
+	const char* path
+) {
+	confignode_iter iter = {};
+	confignode_path_iter_start(&iter, node, path);
+	return iter;
+}
+
+/**
  * @brief Start iteration over child nodes of a MAP or ARRAY node.
  * Initializes the iterator and positions it at the first child node.
  * Only MAP and ARRAY nodes can be iterated over as they contain child elements.
@@ -44,7 +64,24 @@ bool confignode_iter_start(confignode_iter* iter, confignode* node) {
 		node->type != CONFIGNODE_TYPE_ARRAY
 	) return false;
 	iter->root = node, iter->cur = NULL, iter->node = NULL;
-	return true;
+	iter->index = -1, iter->name = NULL;
+	return confignode_iter_next(iter);
+}
+
+/**
+ * @brief Start iteration and return an iterator by value.
+ * This is a convenience function that initializes an iterator structure and
+ * returns it by value. Useful for inline iterator initialization in for loops
+ * or variable declarations. Only works for MAP and ARRAY nodes.
+ *
+ * @param node the MAP or ARRAY node to iterate over
+ * @return initialized iterator structure positioned at the start
+ *
+ */
+confignode_iter confignode_iter_start_ret(confignode* node) {
+	confignode_iter iter = {};
+	confignode_iter_start(&iter, node);
+	return iter;
 }
 
 /**
@@ -63,11 +100,19 @@ bool confignode_iter_next(confignode_iter* iter) {
 		list* next = iter->cur ?
 			((list*) iter->cur)->next :
 			list_first(iter->root->items);
-		if (!next) return false;
+		if (!next) goto end;
 		iter->cur = next;
 		iter->node = LIST_DATA(iter->cur, confignode*);
 	} while (!iter->node);
-	return iter->node != NULL;
+	if (!iter->node) goto end;
+	iter->index++;
+	iter->name = iter->node->key ? iter->node->key : NULL;
+	return true;
+end:
+	iter->index = -1;
+	iter->name = NULL;
+	iter->node = NULL;
+	return false;
 }
 
 /**
