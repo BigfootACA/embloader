@@ -36,8 +36,12 @@ EFI_STATUS efi_readline(
 ) {
 	EFI_INPUT_KEY key;
 	EFI_STATUS status = EFI_NOT_READY;
+	CHAR16 *str;
 	if (!in || !buffer || size == 0) return EFI_INVALID_PARAMETER;
-	memset(buffer, 0, size);
+	if (buffer[0] && (str = encode_utf8_to_utf16(buffer))) {
+		out->OutputString(out, str);
+		free(str);
+	}
 	uint64_t times = 0;
 	while (true) {
 		memset(&key, 0, sizeof(key));

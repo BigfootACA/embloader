@@ -55,6 +55,7 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected) {
 		printf("Select an option (1-%d) or press Enter to boot default: ", index - 1);
 		fflush(stdout);
 		char input[16];
+		memset(input, 0, sizeof(input));
 		EFI_STATUS status = efi_readline(
 			gST->ConIn, gST->ConOut,
 			input, sizeof(input),
