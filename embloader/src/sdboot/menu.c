@@ -4,6 +4,7 @@
 #include "debugs.h"
 #include "efi-utils.h"
 #include "file-utils.h"
+#include "str-utils.h"
 #include "log.h"
 
 static bool sdboot_check_fs(embloader_dir *dir) {
@@ -42,8 +43,9 @@ static bool menu_loader_compare(list *l, void *d) {
 	return el->extra == m;
 }
 
-static EFI_STATUS sdboot_boot_add_auto_items(int offset) {
+static EFI_STATUS sdboot_boot_add_auto_items() {
 	list *p;
+	int offset = 0;
 	bool auto_firmware = g_embloader.sdboot->menu.auto_firmware;
 	bool auto_reboot = g_embloader.sdboot->menu.auto_reboot;
 	bool auto_poweroff = g_embloader.sdboot->menu.auto_poweroff;
@@ -53,6 +55,8 @@ static EFI_STATUS sdboot_boot_add_auto_items(int offset) {
 		if (auto_firmware && item->type == LOADER_EFISETUP) auto_firmware = false;
 		if (auto_reboot && embloader_loader_is_reboot(item)) auto_reboot = false;
 		if (auto_poweroff && embloader_loader_is_shutdown(item)) auto_poweroff = false;
+		if (item->type == LOADER_SDBOOT)
+			offset = MAX(offset, item->priority + 1);
 	} while ((p = p->next));
 	embloader_loader loader;
 	if (auto_firmware) {
@@ -86,13 +90,63 @@ static EFI_STATUS sdboot_boot_add_auto_items(int offset) {
 	return EFI_SUCCESS;
 }
 
-static EFI_STATUS sdboot_boot_add_items() {
+static int sdboot_compare_entries(embloader_loader *a, embloader_loader *b) {
+	int cmp;
+	if (!a || !b) return 0;
+	if (a->type != LOADER_SDBOOT || b->type != LOADER_SDBOOT) return 0;
+	sdboot_boot_loader *loader_a = a->extra;
+	sdboot_boot_loader *loader_b = b->extra;
+	if (!loader_a || !loader_b) return 0;
+	bool has_sort_key_a = loader_a->sort_key && loader_a->sort_key[0];
+	bool has_sort_key_b = loader_b->sort_key && loader_b->sort_key[0];
+	if (has_sort_key_a && !has_sort_key_b) return -1;
+	if (!has_sort_key_a && has_sort_key_b) return 1;
+	if (has_sort_key_a && has_sort_key_b) {
+		if ((cmp = strcmp(loader_a->sort_key, loader_b->sort_key)) != 0) return cmp;
+		if (
+			loader_a->machine_id && loader_b->machine_id &&
+			(cmp = strcmp(loader_a->machine_id, loader_b->machine_id)) != 0
+		) return cmp;
+		if (
+			loader_a->version && loader_b->version &&
+			(cmp = vercmp(loader_b->version, loader_a->version)) != 0
+		) return cmp;
+	}
+	if (loader_a->name && loader_b->name)
+		return vercmp(loader_b->name, loader_a->name);
+	return 0;
+}
+
+static void sdboot_items_sort() {
 	list *p;
-	if (!g_embloader.menu || !g_embloader.sdboot) return EFI_NOT_READY;
 	int sdboot_offset = confignode_path_get_int(
 		g_embloader.config, "menu.sdboot.priority-offset", 100, NULL
 	);
-	int index = MIN(list_count(g_embloader.menu->loaders), 0) + sdboot_offset;
+	list *items = NULL;
+	if ((p = list_first(g_embloader.menu->loaders))) do {
+		LIST_DATA_DECLARE(item, p, embloader_loader*);
+		if (!item || item->type != LOADER_SDBOOT) continue;
+		list_obj_add_new(&items, item);
+	} while ((p = p->next));
+	list *pa, *pb;
+	if ((pa = list_first(items))) do {
+		LIST_DATA_DECLARE(item_a, pa, embloader_loader*);
+		if (!item_a) continue;
+		int priority = sdboot_offset;
+		if ((pb = list_first(items))) do {
+			LIST_DATA_DECLARE(item_b, pb, embloader_loader*);
+			if (!item_b || item_a == item_b) continue;
+			int cmp = sdboot_compare_entries(item_a, item_b);
+			if (cmp > 0) priority++;
+		} while ((pb = pb->next));
+		item_a->priority = priority;
+	} while ((pa = pa->next));
+	list_free_all(items, NULL);
+}
+
+static EFI_STATUS sdboot_boot_add_items() {
+	list *p;
+	if (!g_embloader.menu || !g_embloader.sdboot) return EFI_NOT_READY;
 	if ((p = list_first(g_embloader.sdboot->loaders))) do {
 		LIST_DATA_DECLARE(item, p, sdboot_boot_loader*);
 		if (!item || list_search_one(
@@ -107,11 +161,11 @@ static EFI_STATUS sdboot_boot_add_items() {
 		loader->title = item->title ? strdup(item->title) : NULL;
 		loader->type = LOADER_SDBOOT;
 		loader->complete = true;
-		loader->priority = index++;
 		loader->extra = item;
 		list_obj_add_new(&g_embloader.menu->loaders, loader);
 	} while ((p = p->next));
-	sdboot_boot_add_auto_items(index);
+	sdboot_items_sort();
+	sdboot_boot_add_auto_items();
 	embloader_sort_menu_loaders();
 	return EFI_SUCCESS;
 }

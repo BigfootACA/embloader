@@ -59,8 +59,8 @@ struct sdboot_boot_loader {
 	char *name;              ///< Entry name (from filename)
 	char *title;             ///< Display title for menu
 	char *version;           ///< Version string (as ktype)
-	char *machine_id;        ///< Machine ID (*unsupported)
-	char *sort_key;          ///< Sort key for ordering (*unsupported)
+	char *machine_id;        ///< Machine ID (only for sort)
+	char *sort_key;          ///< Sort key for ordering
 	char *kernel;            ///< Linux EFI kernel to boot
 	char *efi;               ///< EFI application to start
 	list *initramfs;         ///< List of initramfs files
