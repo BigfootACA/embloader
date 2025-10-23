@@ -566,3 +566,23 @@ char* confignode_path_get_string_or_list(
 	if (!n) return NULL;
 	return confignode_value_get_string_or_list(n, sep, ok);
 }
+
+/**
+ * @brief Check if a node at the specified path is of a given type.
+ * This function looks up a node by path and checks if its type matches
+ * the specified type.
+ *
+ * @param node the root node to start path lookup from
+ * @param path the path string pointing to the node
+ * @param type the expected node type to check against
+ * @return true if the node exists and matches the type, false otherwise
+ *
+ */
+bool confignode_path_is_type(
+	confignode* node,
+	const char* path,
+	confignode_type type
+) {
+	confignode* n = confignode_path_lookup(node, path, false);
+	return n && confignode_is_type(n, type);
+}

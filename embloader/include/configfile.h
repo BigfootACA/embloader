@@ -317,6 +317,13 @@ extern bool confignode_path_get_bool(
 	bool* ok
 );
 
+/** Check if node at path is of specified type */
+extern bool confignode_path_is_type(
+	confignode* node,
+	const char* path,
+	confignode_type type
+);
+
 /** Append node to array at path (creates array if needed) */
 extern bool confignode_path_array_append(
 	confignode* node,
