@@ -67,6 +67,77 @@ fail:
 }
 
 /**
+ * @brief Get string list from a value node or array/map of values.
+ * For VALUE nodes, returns a single-element list containing the string value.
+ * For ARRAY or MAP nodes, returns a list of strings from all child value nodes.
+ * The returned list and its string elements must be freed by the caller using
+ * list_free_all_def().
+ *
+ * @param node the node to extract strings from
+ * @param ok optional pointer to bool that receives success status
+ * @return newly allocated list of strings, or NULL on failure
+ *         Caller is responsible for freeing the list and its contents
+ *
+ */
+list* confignode_value_get_string_or_list_to_list(confignode* node, bool* ok) {
+	if (ok) *ok = false;
+	if (!node) return NULL;
+	if (node->type == CONFIGNODE_TYPE_VALUE) {
+		bool nok = false;
+		char *ret = confignode_value_get_string(node, NULL, &nok);
+		if (!nok || !ret) return NULL;
+		list *l = list_new(ret);
+		if (!l) {
+			free(ret);
+			return NULL;
+		}
+		if (ok) *ok = true;
+		return l;
+	}
+	if (
+		node->type == CONFIGNODE_TYPE_ARRAY ||
+		node->type == CONFIGNODE_TYPE_MAP
+	) {
+		list *l = NULL;
+		confignode_foreach(iter, node) {
+			char *s = confignode_value_get_string(iter.node, NULL, NULL);
+			if (s) list_obj_add_new(&l, s);
+		}
+		if (ok) *ok = true;
+		return l;
+	}
+	return NULL;
+}
+
+/**
+ * @brief Get concatenated string from a value node or array/map of values.
+ * For VALUE nodes, returns the string representation of the value.
+ * For ARRAY or MAP nodes, returns all child values concatenated with the
+ * specified separator. Empty arrays/maps return NULL with success status.
+ *
+ * @param node the node to extract and concatenate strings from
+ * @param sep the separator string to use between elements
+ * @param ok optional pointer to bool that receives success status
+ * @return newly allocated concatenated string that must be freed by caller,
+ *         or NULL on failure or empty list
+ *
+ */
+char* confignode_value_get_string_or_list(confignode* node, char* sep, bool* ok) {
+	bool nok = false;
+	if (ok) *ok = false;
+	list *l = confignode_value_get_string_or_list_to_list(node, &nok);
+	if (!nok) return NULL;
+	if (!l) {
+		if (ok) *ok = true;
+		return NULL;
+	}
+	char *ret = list_to_string(l, sep);
+	if (ret && ok) *ok = true;
+	list_free_all_def(l);
+	return ret;
+}
+
+/**
  * @brief Get integer value from a value node with automatic type conversion.
  * Converts strings (decimal), floats (truncated), and booleans (1/0) to integers.
  *

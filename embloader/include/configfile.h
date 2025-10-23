@@ -13,6 +13,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
+#include "list.h"
 
 typedef struct confignode confignode;
 
@@ -143,6 +144,12 @@ extern bool confignode_value_get(confignode* node, confignode_value* out);
 
 /** Get string representation of value (with default and success flag) */
 extern char* confignode_value_get_string(confignode* node, const char* def, bool* ok);
+
+/** Get list of strings from VALUE node or ARRAY/MAP of VALUE nodes */
+extern list* confignode_value_get_string_or_list_to_list(confignode* node, bool* ok);
+
+/** Get concatenated string from VALUE node or ARRAY/MAP of VALUE nodes */
+extern char* confignode_value_get_string_or_list(confignode* node, char* sep, bool* ok);
 
 /** Get integer value with type conversion and default */
 extern int64_t confignode_value_get_int(confignode* node, int64_t def, bool* ok);
