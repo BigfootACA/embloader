@@ -514,3 +514,55 @@ bool confignode_path_get_bool(
 	if (!n) return def;
 	return confignode_value_get_bool(n, def, ok);
 }
+
+/**
+ * @brief Get string list from a value node or array/map of values at path.
+ * This is a path-based wrapper around confignode_value_get_string_or_list_to_list().
+ * For VALUE nodes, returns a single-element list containing the string value.
+ * For ARRAY or MAP nodes, returns a list of strings from all child value nodes.
+ * The returned list and its string elements must be freed by the caller using
+ * list_free_all_def().
+ *
+ * @param node the root node to start path lookup from
+ * @param path the path string pointing to the node
+ * @param ok optional pointer to bool that receives success status
+ * @return newly allocated list of strings, or NULL on failure or path not found
+ *         Caller is responsible for freeing the list and its contents
+ *
+ */
+list* confignode_path_get_string_or_list_to_list(
+	confignode* node,
+	const char* path,
+	bool* ok
+) {
+	if (ok) *ok = false;
+	confignode* n = confignode_path_lookup(node, path, false);
+	return n ? confignode_value_get_string_or_list_to_list(n, ok) : NULL;
+}
+
+/**
+ * @brief Get concatenated string from a value node or array/map of values at path.
+ * This is a path-based wrapper around confignode_value_get_string_or_list().
+ * For VALUE nodes, returns the string representation of the value.
+ * For ARRAY or MAP nodes, returns all child values concatenated with the
+ * specified separator. Empty arrays/maps return NULL with success status.
+ *
+ * @param node the root node to start path lookup from
+ * @param path the path string pointing to the node
+ * @param sep the separator string to use between elements
+ * @param ok optional pointer to bool that receives success status
+ * @return newly allocated concatenated string that must be freed by caller,
+ *         or NULL on failure, path not found, or empty list
+ *
+ */
+char* confignode_path_get_string_or_list(
+	confignode* node,
+	const char* path,
+	char* sep,
+	bool* ok
+) {
+	if (ok) *ok = false;
+	confignode* n = confignode_path_lookup(node, path, false);
+	if (!n) return NULL;
+	return confignode_value_get_string_or_list(n, sep, ok);
+}

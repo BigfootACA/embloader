@@ -278,6 +278,21 @@ extern char* confignode_path_get_string(
 	bool* ok
 );
 
+/** Get list of strings from VALUE node or ARRAY/MAP of VALUE nodes at path */
+extern list* confignode_path_get_string_or_list_to_list(
+	confignode* node,
+	const char* path,
+	bool* ok
+);
+
+/** Get concatenated string from VALUE node or ARRAY/MAP of VALUE nodes at path */
+extern char* confignode_path_get_string_or_list(
+	confignode* node,
+	const char* path,
+	char* sep,
+	bool* ok
+);
+
 /** Get integer value at path with default fallback */
 extern int64_t confignode_path_get_int(
 	confignode* node,
