@@ -36,7 +36,6 @@ extern bool embloader_load_smbios();
 extern bool embloader_try_match(confignode *node);
 extern bool embloader_try_matches(confignode *node);
 extern bool embloader_choose_device();
-extern bool embloader_is_efisetup_supported();
 extern void embloader_load_ktype();
 extern list* embloader_resolve_path(const char *path);
 extern list* embloader_dt_get_dtb_id();

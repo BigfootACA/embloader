@@ -1,4 +1,5 @@
 #include <Library/UefiBootServicesTableLib.h>
+#include <Library/UefiRuntimeServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
 #include <Library/BaseMemoryLib.h>
 #include <Library/DevicePathLib.h>
@@ -8,7 +9,9 @@
 #include <Protocol/DevicePath.h>
 #include <Protocol/SimpleFileSystem.h>
 #include <Protocol/DevicePathToText.h>
+#include <Guid/GlobalVariable.h>
 #include "efi-utils.h"
+#include "variables.h"
 #include "encode.h"
 #include "log.h"
 #include <stddef.h>
@@ -236,4 +239,54 @@ EFI_DEVICE_PATH_PROTOCOL* efi_device_path_append_filepath(
 	free(fdp);
 	if (!ret) log_warning("append filepath %s failed", path);
 	return ret;
+}
+
+/**
+ * @brief Check if EFI setup (firmware setup) is supported.
+ * This function checks the EFI OsIndicationsSupported variable to determine
+ * if the firmware supports booting to firmware setup interface.
+ *
+ * @return true if EFI setup is supported, false otherwise
+ */
+bool efi_is_setup_supported() {
+	uint64_t osind = 0;
+	EFI_STATUS status;
+	status = efivar_get_uint64_le(
+		&gEfiGlobalVariableGuid,
+		"OsIndicationsSupported",
+		&osind
+	);
+	if (EFI_ERROR(status)) return false;
+	return (osind & EFI_OS_INDICATIONS_BOOT_TO_FW_UI) != 0;
+}
+
+/**
+ * @brief Reboot the system to UEFI firmware setup interface.
+ * Sets the OsIndications EFI variable with the BOOT_TO_FW_UI flag to request
+ * the firmware to boot into setup mode on next reboot, then triggers a cold
+ * reset. This function does not return on success.
+ *
+ * @return EFI_SUCCESS if variable set successfully (won't return),
+ *         EFI_UNSUPPORTED if firmware doesn't support setup mode,
+ *         EFI_DEVICE_ERROR if reset failed unexpectedly,
+ *         other error codes on variable write failure
+ */
+EFI_STATUS efi_reboot_to_setup() {
+	uint32_t flags;
+	uint64_t osind = 0;
+	EFI_STATUS status;
+	if (!efi_is_setup_supported()) {
+		log_error("EFI setup not supported");
+		return EFI_UNSUPPORTED;
+	}
+	flags = EFI_VARIABLE_NON_VOLATILE | EFI_VARIABLE_BOOTSERVICE_ACCESS | EFI_VARIABLE_RUNTIME_ACCESS;
+	efivar_get_uint64_le(&gEfiGlobalVariableGuid, "OsIndications", &osind);
+	osind |= EFI_OS_INDICATIONS_BOOT_TO_FW_UI;
+	status = efivar_set_uint64_le(&gEfiGlobalVariableGuid, "OsIndications", osind, flags);
+	if (EFI_ERROR(status)) return status;
+	log_info("Rebooting to EFI setup ...");
+	gRT->ResetSystem(EfiResetCold, EFI_SUCCESS, 0, NULL);
+	gBS->Stall(500000);
+	log_warning("ResetSystem returned unexpectedly");
+	return EFI_DEVICE_ERROR;
 }

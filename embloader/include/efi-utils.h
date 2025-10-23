@@ -43,8 +43,10 @@ extern EFI_STATUS efi_readline(
 	size_t len,
 	time_t timeout
 );
-EFI_DEVICE_PATH_PROTOCOL* efi_device_path_append_filepath(
+extern EFI_DEVICE_PATH_PROTOCOL* efi_device_path_append_filepath(
 	EFI_DEVICE_PATH_PROTOCOL *dp,
 	const char *path
 );
+extern bool efi_is_setup_supported();
+extern EFI_STATUS efi_reboot_to_setup();
 #endif

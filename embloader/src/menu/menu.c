@@ -44,7 +44,7 @@ static bool loader_is_valid(embloader_loader *loader) {
 	if (!loader->name || !loader->title) return false;
 	if (loader->type == LOADER_NONE) return false;
 	if (loader->type == LOADER_SDBOOT && !loader->extra) return false;
-	if (loader->type == LOADER_EFISETUP && !embloader_is_efisetup_supported()) return false;
+	if (loader->type == LOADER_EFISETUP && !efi_is_setup_supported()) return false;
 	if (loader->node) {
 		confignode *match = confignode_path_lookup(loader->node, "match", false);
 		if (match && !embloader_try_matches(match)) return false;
