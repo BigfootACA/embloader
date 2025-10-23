@@ -1,9 +1,13 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <Library/UefiBootServicesTableLib.h>
 #include <stdio.h>
 #include "log.h"
 #include "menu.h"
 #include "embloader.h"
 #include "efi-utils.h"
+#include "str-utils.h"
 
 /**
  * @brief Check if the menu has any loader entries marked as complete.
@@ -169,6 +173,53 @@ EFI_STATUS embloader_menu_start(embloader_loader **selected, uint64_t *flags) {
 	return status;
 }
 
+static embloader_loader *embloader_get_next_loader(embloader_loader *current) {
+	embloader_loader *loader = NULL;
+	if (!g_embloader.menu || !current) return NULL;
+	if (current->name && !endwiths(current->name, "-rescue")) {
+		char *nname = NULL;
+		int r = asprintf(&nname, "%s-rescue", current->name);
+		if (r != 0 && nname) loader = embloader_find_loader(nname);
+		if (nname) free(nname);
+		if (loader) return loader;
+	}
+	if (confignode_path_get_bool(g_embloader.config, "menu.try-next-on-failure", false, NULL)) {
+		list *p;
+		bool found_current = false;
+		if ((p = list_first(g_embloader.menu->loaders))) do {
+			LIST_DATA_DECLARE(item, p, embloader_loader*);
+			if (!item) continue;
+			if (found_current && item->complete) return item;
+			if (item == current) found_current = true;
+		} while ((p = p->next));
+	}
+	log_warning(
+		"no fallback loader found for %s (%s)",
+		current->title ?: "null",
+		current->name ?: "null"
+	);
+	return NULL;
+}
+
+static EFI_STATUS embloader_try_boot(embloader_loader *loader, uint64_t flags) {
+	EFI_STATUS status;
+	while (true) {
+		status = embloader_loader_boot(loader);
+		if (
+			EFI_ERROR(status) && (flags & EMBLOADER_FLAG_AUTOBOOT) &&
+			(loader = embloader_get_next_loader(loader))
+		) {
+			log_warning(
+				"boot failed with %s, auto trying next loader entry %s (%s)",
+				efi_status_to_string(status),
+				loader->title ?: "null",
+				loader->name ?: "null"
+			);
+		} else break;
+	}
+	return status;
+}
+
 /**
  * @brief Display and handle the main boot menu loop.
  * This function implements the main menu loop, handling menu display,
@@ -188,7 +239,7 @@ EFI_STATUS embloader_show_menu() {
 			status = embloader_menu_start(&loader, &flags);
 			if (EFI_ERROR(status)) return status;
 			if (!loader) continue;
-			status = embloader_loader_boot(loader);
+			status = embloader_try_boot(loader, flags);
 			printf("Press any key to continue...\n");
 			efi_wait_any_key(gST->ConIn);
 		} else {
