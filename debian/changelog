@@ -1,3 +1,34 @@
+embloader (0.3) unstable; urgency=medium
+
+  b7312be patches: fix build for riscv64
+  1109b42 Makefile: add missing arm64
+  d93dc8b embloader: menu: menus: tui_menu.c: refactor for editor supports
+  331eb3a embloader: lib: efi-utils.c: add efi_is_setup_supported and efi_reboot_to_setup
+  8c89e07 embloader: menu: menus: text_menu.c: add supports for editor
+  a701143 embloader: menu: menu.c: add supports for boot fallback
+  998885f embloader: menu: menu.c: embloader_load_menu: remove default title
+  8d3cf52 embloader: linux: bootinfo.c: use confignode_path_get_string_or_list_to_list
+  de6f793 embloader: sdboot: base.c: sdboot_boot_menu_init: correct values with systemd-boot
+  16cc13d embloader: loader: add editor supports
+  0b67cc2 embloader: sdboot: menu.c: add sort-key supports
+  9ed0420 embloader: menu: add menu flags
+  d8626f6 embloader: linux: load.c: allow skip overlays if failure
+  bcf9358 embloader: lib: readline.c: refactor and add ansi escape
+  932a616 embloader: lib: readline.c: supports input buffer edit
+  e5805fe embloader: configfile: iter.c: refactor iterator
+  469446a embloader: configfile: wrapper.c: add confignode_path_is_type
+  1a2edf7 embloader: configfile: wrapper.c: add confignode_path_get_string_or_list_to_list
+  5d77b90 embloader: configfile: value.c: add confignode_value_get_string_or_list_to_list
+  94a92e7 embloader: lib: str-utils.c: add vercmp and verncmp
+  7b3455e fix: set sdboot-is-embloader architecture to all
+  8224adf embloader: lib: str-utils.c: stringn_is_true/stringn_is_false: add y and n as single char value
+  16dbb1d embloader: linux: bootargs.c: linux_load_bootargs: fix bootargs load from profiles
+  4aa16a3 embloader: lib: list.c: list_string_append: do not append sep if buff is empty
+  5b9603f CI: add cross compile for arm64
+  e234d87 debian: add sdboot-is-embloader package
+
+ -- BigfootACA <bigfoot@radxa.com> Thu, 23 Oct 2025 19:39:23 +0800
+
 embloader (0.2) unstable; urgency=medium
 
   e29b132 scripts: run.sh: remove esp.img
