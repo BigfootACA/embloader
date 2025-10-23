@@ -10,6 +10,8 @@ ifeq ($(ARCH),x86_64)
 	EDK2_ARCH = X64
 else ifeq ($(ARCH),aarch64)
 	EDK2_ARCH = AARCH64
+else ifeq ($(ARCH),arm64)
+	EDK2_ARCH = AARCH64
 else ifeq ($(ARCH),riscv64)
 	EDK2_ARCH = RISCV64
 else ifeq ($(ARCH),i386)
