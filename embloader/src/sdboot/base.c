@@ -56,14 +56,14 @@ void sdboot_boot_menu_init(sdboot_boot_menu* menu) {
 	menu->default_entry = NULL;
 	menu->timeout = 0;
 	menu->console_mode = MODE_KEEP;
-	menu->editor = 0;
-	menu->auto_entries = 0;
-	menu->auto_firmware = 0;
-	menu->auto_reboot = 0;
-	menu->auto_poweroff = 0;
-	menu->beep = 0;
-	menu->secureboot_enroll = ENROLL_OFF;
-	menu->reboot_for_bitlocker = 0;
+	menu->editor = true;
+	menu->auto_entries = true;
+	menu->auto_firmware = true;
+	menu->auto_reboot = false;
+	menu->auto_poweroff = false;
+	menu->beep = false;
+	menu->secureboot_enroll = ENROLL_IF_SAFE;
+	menu->reboot_for_bitlocker = false;
 }
 
 /**
