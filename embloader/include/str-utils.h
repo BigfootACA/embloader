@@ -27,4 +27,6 @@ extern void trim(char*str);
 extern int vscprintf(char*buf,size_t size,const char*fmt,va_list va);
 extern int scprintf(char*buf,size_t size,const char*fmt,...);
 extern list *string_to_list_by_space(const char *str);
+extern int verncmp(const char *ver1, const char *ver2, size_t len);
+extern int vercmp(const char *ver1, const char *ver2);
 #endif

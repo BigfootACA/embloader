@@ -204,3 +204,82 @@ list *string_to_list_by_space(const char *str) {
 	free(cur);
 	return result;
 }
+
+/**
+ * @brief Compare two version strings with length limit
+ *
+ * This function implements a comprehensive version comparison algorithm similar
+ * to RPM/Alpine version comparison. It handles:
+ * - Numeric segments (compared numerically)
+ * - Alphabetic segments (compared lexicographically)
+ * - Special characters as separators
+ * - Tilde (~) prefix means pre-release (lower priority)
+ * - Leading zeros are ignored in numeric segments
+ *
+ * @param ver1 First version string to compare
+ * @param ver2 Second version string to compare
+ * @param len Maximum length to compare from ver1 (0 means unlimited)
+ * @return < 0 if ver1 < ver2, 0 if ver1 == ver2, > 0 if ver1 > ver2
+ */
+int verncmp(const char *ver1, const char *ver2, size_t len) {
+	if (!ver1 && !ver2) return 0;
+	if (!ver1) return -1;
+	if (!ver2) return 1;
+	const char *p1 = ver1, *p2 = ver2;
+	size_t pos1 = 0;
+	while (*p1 || *p2) {
+		if (len > 0 && pos1 >= len) break;
+		while (*p1 && !isalnum(*p1) && *p1 != '~') p1++, pos1++;
+		while (*p2 && !isalnum(*p2) && *p2 != '~') p2++;
+		if (*p1 == '~' && *p2 != '~') return -1;
+		if (*p1 != '~' && *p2 == '~') return 1;
+		if (*p1 == '~' && *p2 == '~') {
+			p1++, p2++, pos1++;
+			continue;
+		}
+		if (!*p1 && !*p2) break;
+		if (!*p1) return -1;
+		if (!*p2) return 1;
+		if (isdigit(*p1) && isdigit(*p2)) {
+			while (*p1 == '0' && isdigit(*(p1 + 1))) p1++, pos1++;
+			while (*p2 == '0' && isdigit(*(p2 + 1))) p2++;
+			const char *num1_start = p1, *num2_start = p2;
+			while (isdigit(*p1)) p1++, pos1++;
+			while (isdigit(*p2)) p2++;
+			size_t len1 = p1 - num1_start, len2 = p2 - num2_start;
+			if (len1 != len2) return len1 < len2 ? -1 : 1;
+			int cmp = strncmp(num1_start, num2_start, len1);
+			if (cmp != 0) return cmp;
+			continue;
+		}
+		if (isalpha(*p1) && isalpha(*p2)) {
+			const char *alpha1_start = p1, *alpha2_start = p2;
+			while (isalpha(*p1)) p1++, pos1++;
+			while (isalpha(*p2)) p2++;
+			size_t len1 = p1 - alpha1_start, len2 = p2 - alpha2_start;
+			size_t min_len = len1 < len2 ? len1 : len2;
+			int cmp = strncmp(alpha1_start, alpha2_start, min_len);
+			if (cmp != 0) return cmp;
+			if (len1 != len2) return len1 < len2 ? -1 : 1;
+			continue;
+		}
+		if (isdigit(*p1)) return 1;
+		if (isdigit(*p2)) return -1;
+		p1++, p2++, pos1++;
+	}
+	return 0;
+}
+
+/**
+ * @brief Compare two version strings (unlimited length)
+ *
+ * This is a convenience wrapper around verncmp() with no length limit.
+ * It compares the full version strings using the same algorithm.
+ *
+ * @param ver1 First version string to compare
+ * @param ver2 Second version string to compare
+ * @return < 0 if ver1 < ver2, 0 if ver1 == ver2, > 0 if ver1 > ver2
+ */
+int vercmp(const char *ver1, const char *ver2) {
+	return verncmp(ver1, ver2, 0);
+}
