@@ -1,0 +1,79 @@
+#!/bin/sh
+set -e
+
+PACKAGE="embloader"
+
+case "$1" in
+    remove|purge)
+        ARCH=$(dpkg --print-architecture)
+        
+        # Determine the default UEFI boot file name based on architecture
+        case "$ARCH" in
+            amd64)
+                BOOT_EFI_NAME="BOOTX64.EFI"
+                ;;
+            arm64)
+                BOOT_EFI_NAME="BOOTAA64.EFI"
+                ;;
+            i386)
+                BOOT_EFI_NAME="BOOTIA32.EFI"
+                ;;
+            riscv64)
+                BOOT_EFI_NAME="BOOTRISCV64.EFI"
+                ;;
+            *)
+                BOOT_EFI_NAME=""
+                ;;
+        esac
+
+        # Find ESP mount point
+        ESP_PATH=""
+        if [ -d /boot/efi/EFI ]; then
+            ESP_PATH="/boot/efi"
+        elif [ -d /boot/EFI ]; then
+            ESP_PATH="/boot"
+        fi
+
+        # Remove embloader from default boot location
+        if [ -n "$ESP_PATH" ] && [ -n "$BOOT_EFI_NAME" ]; then
+            BOOT_DIR="$ESP_PATH/EFI/BOOT"
+            
+            # Check if the current boot file is embloader
+            if [ -f "$BOOT_DIR/$BOOT_EFI_NAME" ] && [ -f /usr/share/embloader/embloader.efi ]; then
+                if cmp -s "$BOOT_DIR/$BOOT_EFI_NAME" /usr/share/embloader/embloader.efi; then
+                    # Restore backup if it exists
+                    if [ -f "$BOOT_DIR/$BOOT_EFI_NAME.bak" ]; then
+                        echo "Restoring previous boot loader from backup"
+                        mv -f "$BOOT_DIR/$BOOT_EFI_NAME.bak" "$BOOT_DIR/$BOOT_EFI_NAME"
+                    else
+                        echo "Warning: Removing default boot loader $BOOT_DIR/$BOOT_EFI_NAME"
+                        echo "You may need to reinstall your boot loader manually"
+                        rm -f "$BOOT_DIR/$BOOT_EFI_NAME"
+                    fi
+                fi
+            fi
+        fi
+
+        # On purge, remove configuration directory
+        if [ "$1" = "purge" ] && [ -n "$ESP_PATH" ]; then
+            CONFIG_DIR="$ESP_PATH/embloader"
+            if [ -d "$CONFIG_DIR" ]; then
+                rm -rf "$CONFIG_DIR"
+                echo "Removed configuration directory $CONFIG_DIR"
+            fi
+        fi
+
+        ;;
+
+    upgrade|deconfigure|failed-upgrade)
+        ;;
+
+    *)
+        echo "prerm called with unknown argument \`$1'" >&2
+        exit 1
+        ;;
+esac
+
+#DEBHELPER#
+
+exit 0
