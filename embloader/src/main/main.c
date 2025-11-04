@@ -29,10 +29,13 @@ static int config_print(const char *str) {
 #error EMBLOADER_VERSION is not set
 #endif
 
+static const char *bootloader_info = "#### LoaderInfo: embloader " EMBLOADER_VERSION " ####";
+
 EFI_STATUS EFIAPI efi_main(
 	EFI_HANDLE ImageHandle,
 	EFI_SYSTEM_TABLE *SystemTable
 ){
+	if (!strstr(bootloader_info, "####")) return EFI_LOAD_ERROR;
 	log_info("embloader (Embedded Bootloader) version " EMBLOADER_VERSION);
 	log_debug("function efi_main at %p", efi_main);
 	embloader_init();
