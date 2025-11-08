@@ -55,6 +55,7 @@ EFI_STATUS EFIAPI efi_main(
 	}
 	if (!embloader_choose_device())
 		log_warning("no matched device found in config");
+	gBS->SetWatchdogTimer(0, 0, 0, NULL);
 	embloader_load_menu();
 	sdboot_boot_load_menu();
 	EFI_STATUS status = embloader_show_menu();

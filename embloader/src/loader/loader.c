@@ -1,6 +1,7 @@
 #include "loader.h"
 #include "efi-utils.h"
 #include "log.h"
+#include <Library/UefiBootServicesTableLib.h>
 
 /**
  * @brief Boot a loader using the appropriate method based on its type.
@@ -27,6 +28,7 @@ EFI_STATUS embloader_loader_boot(embloader_loader *loader) {
 			g_embloader.ktype = ktype;
 		}
 	}
+	gBS->SetWatchdogTimer(5 * 60, 0, 0, NULL);
 	for (int i = 0; embloader_loader_funcs[i].name; i++) {
 		if (!embloader_loader_funcs[i].func) continue;
 		if (loader->type != embloader_loader_funcs[i].type) continue;
@@ -34,6 +36,7 @@ EFI_STATUS embloader_loader_boot(embloader_loader *loader) {
 		found = true;
 		break;
 	}
+	gBS->SetWatchdogTimer(0, 0, 0, NULL);
 	if (!found) {
 		log_warning("unknown loader type %d", loader->type);
 	} else if (EFI_ERROR(status)) {
