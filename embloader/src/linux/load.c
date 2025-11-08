@@ -56,7 +56,7 @@ void linux_data_clean(linux_data *data) {
 	);
 	if (data->initramfs) gBS->FreePages(
 		(UINTN) data->initramfs,
-		EFI_SIZE_TO_PAGES(data->initramfs_size)
+		EFI_SIZE_TO_PAGES(ALIGN_VALUE(data->initramfs_size, EFI_PAGE_SIZE))
 	);
 	if (data->fdt) free(data->fdt);
 	if (data->bootargs) free(data->bootargs);

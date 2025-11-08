@@ -218,7 +218,7 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 	} while ((p = p->next));
 	list_free_all(ptrs, free_initramfs_file);
 	data->initramfs = pages;
-	data->initramfs_size = EFI_PAGES_TO_SIZE(pcnt);
+	data->initramfs_size = total_len;
 	log_info(
 		"initramfs collections (%d) at %p with %" PRIu64 " pages",
 		cnt, data->initramfs, (uint64_t)pcnt
