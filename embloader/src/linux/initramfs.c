@@ -194,7 +194,7 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 	pcnt = EFI_SIZE_TO_PAGES(total_len);
 	status = gBS->AllocatePages(
 		AllocateMaxAddress, EfiLoaderData,
-		pcnt, (UINTN*)&pages
+		pcnt, (EFI_PHYSICAL_ADDRESS*)&pages
 	);
 	if (EFI_ERROR(status)) {
 		pages = NULL, pcnt = 0;

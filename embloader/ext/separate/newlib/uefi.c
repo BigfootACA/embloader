@@ -248,3 +248,9 @@ void _exit(int __status) {
 int getentropy(void *ptr, size_t len) {
 	return _getentropy_r(_REENT, ptr, len);
 }
+
+#if defined(__i386__)
+struct _reent* __getreent(void) {
+	return _GLOBAL_REENT;
+}
+#endif

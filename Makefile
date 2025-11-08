@@ -16,6 +16,12 @@ else ifeq ($(ARCH),riscv64)
 	EDK2_ARCH = RISCV64
 else ifeq ($(ARCH),i386)
 	EDK2_ARCH = IA32
+else ifeq ($(ARCH),arm)
+	EDK2_ARCH = ARM
+else ifeq ($(ARCH),armhf)
+	EDK2_ARCH = ARM
+else ifeq ($(ARCH),arm32)
+	EDK2_ARCH = ARM
 else
 $(error Unsupported architecture: $(ARCH))
 endif

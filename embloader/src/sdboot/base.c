@@ -14,7 +14,7 @@ embloader_arch sdboot_get_current_arch() {
 	return ARCH_ARM;
 	#elif defined(MDE_CPU_AARCH64)
 	return ARCH_ARM64;
-	#elif defined(MDE_CPU_X86)
+	#elif defined(MDE_CPU_IA32)
 	return ARCH_X86;
 	#elif defined(MDE_CPU_X64)
 	return ARCH_X86_64;

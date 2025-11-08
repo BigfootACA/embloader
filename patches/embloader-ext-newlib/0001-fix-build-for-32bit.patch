@@ -1,0 +1,33 @@
+diff --git a/newlib/libc/stdio64/stdio64.c b/newlib/libc/stdio64/stdio64.c
+index 95cb25288..76acbb8c1 100644
+--- a/newlib/libc/stdio64/stdio64.c
++++ b/newlib/libc/stdio64/stdio64.c
+@@ -23,6 +23,7 @@
+ #include <sys/unistd.h>
+ #include <errno.h>
+ #include "local.h"
++#include "reent.h"
+ 
+ #ifdef __LARGE64_FILES
+ _fpos64_t
+diff --git a/newlib/libc/stdlib/getopt.c b/newlib/libc/stdlib/getopt.c
+index d4f225a7a..292278749 100644
+--- a/newlib/libc/stdlib/getopt.c
++++ b/newlib/libc/stdlib/getopt.c
+@@ -98,7 +98,7 @@ gpietsch@comcast.net
+ #include <stdlib.h>
+ #include <string.h>
+ #define __need_getopt_newlib
+-#include <getopt.h>
++#include "../include/getopt.h"
+ 
+ /* macros */
+ 
+@@ -458,6 +458,7 @@ getopt_internal (int argc, char *const argv[], const char *shortopts,
+     }
+   else
+     return data->optopt;
++  return 0;
+ }
+ 
+ int

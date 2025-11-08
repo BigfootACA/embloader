@@ -108,7 +108,7 @@ EFI_STATUS linux_install_fdt(fdt fdt) {
 			"failed to install fdt to system table: %s",
 			efi_status_to_string(status)
 		);
-		gBS->FreePages((EFI_PHYSICAL_ADDRESS)copied, EFI_SIZE_TO_PAGES(size));
+		gBS->FreePages((EFI_PHYSICAL_ADDRESS)(UINTN)copied, EFI_SIZE_TO_PAGES(size));
 		return status;
 	}
 	return EFI_SUCCESS;

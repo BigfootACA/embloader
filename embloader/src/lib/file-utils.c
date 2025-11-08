@@ -56,7 +56,8 @@ EFI_STATUS efi_file_get_size(EFI_FILE_PROTOCOL* file, size_t* size) {
  */
 EFI_STATUS efi_file_chunked_read(EFI_FILE_PROTOCOL* file, size_t offset, void* buffer, size_t size) {
 	EFI_STATUS status;
-	UINTN read_size, read_pos = 0, old_pos = 0;
+	UINTN read_size;
+	UINT64 read_pos = 0, old_pos = 0;
 	if (!file || !buffer) return EFI_INVALID_PARAMETER;
 	if (size == 0) return EFI_SUCCESS;
 	status = file->GetPosition(file, &old_pos);

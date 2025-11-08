@@ -120,10 +120,9 @@
   separate/newlib/aarch64.S
 
 [Sources.ARM]
+  newlib/include/arm-acle-compat.h
   newlib/newlib/libc/machine/arm/aeabi_memclr.c
   newlib/newlib/libc/machine/arm/aeabi_memcpy.c
-  newlib/newlib/libc/machine/arm/aeabi_memmove.c
-  newlib/newlib/libc/machine/arm/aeabi_memset.c
   newlib/newlib/libc/machine/arm/memchr-stub.c
   newlib/newlib/libc/machine/arm/memcpy-stub.c
   newlib/newlib/libc/machine/arm/strcpy.c
@@ -160,31 +159,12 @@
   newlib/newlib/libm/machine/arm/s_round.c
   newlib/newlib/libm/machine/arm/s_trunc.c
   newlib/newlib/libc/machine/arm/aeabi_memcpy-armv7a.S
-  newlib/newlib/libc/machine/arm/aeabi_memmove-arm.S
   newlib/newlib/libc/machine/arm/aeabi_memmove-soft.S
-  newlib/newlib/libc/machine/arm/aeabi_memmove-thumb2.S
-  newlib/newlib/libc/machine/arm/aeabi_memmove-thumb.S
-  newlib/newlib/libc/machine/arm/aeabi_memset-arm.S
-  newlib/newlib/libc/machine/arm/aeabi_memset-soft.S
-  newlib/newlib/libc/machine/arm/aeabi_memset-thumb2.S
-  newlib/newlib/libc/machine/arm/aeabi_memset-thumb.S
-  newlib/newlib/libc/machine/arm/memchr.S
   newlib/newlib/libc/machine/arm/memcpy-armv7a.S
-  newlib/newlib/libc/machine/arm/memcpy-armv7m.S
   newlib/newlib/libc/machine/arm/memcpy.S
   newlib/newlib/libc/machine/arm/setjmp.S
-  newlib/newlib/libc/machine/arm/strcmp-arm-tiny.S
-  newlib/newlib/libc/machine/arm/strcmp-armv4.S
-  newlib/newlib/libc/machine/arm/strcmp-armv4t.S
-  newlib/newlib/libc/machine/arm/strcmp-armv6m.S
-  newlib/newlib/libc/machine/arm/strcmp-armv6.S
-  newlib/newlib/libc/machine/arm/strcmp-armv7m.S
-  newlib/newlib/libc/machine/arm/strcmp-armv7.S
   newlib/newlib/libc/machine/arm/strcmp.S
-  newlib/newlib/libc/machine/arm/strlen-armv7.S
   newlib/newlib/libc/machine/arm/strlen.S
-  newlib/newlib/libc/machine/arm/strlen-thumb1-Os.S
-  newlib/newlib/libc/machine/arm/strlen-thumb2-Os.S
 
 [Sources.RISCV64]
   newlib/newlib/libc/machine/riscv/ffs.c
@@ -248,7 +228,6 @@
   newlib/newlib/libm/machine/i386/fegetexceptflag.c
   newlib/newlib/libm/machine/i386/fegetround.c
   newlib/newlib/libm/machine/i386/feholdexcept.c
-  newlib/newlib/libm/machine/i386/fenv.c
   newlib/newlib/libm/machine/i386/feraiseexcept.c
   newlib/newlib/libm/machine/i386/fesetenv.c
   newlib/newlib/libm/machine/i386/fesetexceptflag.c
@@ -259,23 +238,15 @@
   newlib/newlib/libm/machine/i386/f_expf.c
   newlib/newlib/libm/machine/i386/f_llrint.c
   newlib/newlib/libm/machine/i386/f_llrintf.c
-  newlib/newlib/libm/machine/i386/f_llrintl.c
   newlib/newlib/libm/machine/i386/f_lrint.c
   newlib/newlib/libm/machine/i386/f_lrintf.c
-  newlib/newlib/libm/machine/i386/f_lrintl.c
   newlib/newlib/libm/machine/i386/f_pow.c
   newlib/newlib/libm/machine/i386/f_powf.c
   newlib/newlib/libm/machine/i386/f_rint.c
   newlib/newlib/libm/machine/i386/f_rintf.c
-  newlib/newlib/libm/machine/i386/f_rintl.c
-  newlib/newlib/libc/machine/i386/memchr.S
-  newlib/newlib/libc/machine/i386/memcmp.S
   newlib/newlib/libc/machine/i386/memcpy.S
-  newlib/newlib/libc/machine/i386/memmove.S
   newlib/newlib/libc/machine/i386/memset.S
   newlib/newlib/libc/machine/i386/setjmp.S
-  newlib/newlib/libc/machine/i386/strchr.S
-  newlib/newlib/libc/machine/i386/strlen.S
   newlib/newlib/libm/machine/i386/f_atan2f.S
   newlib/newlib/libm/machine/i386/f_atan2.S
   newlib/newlib/libm/machine/i386/f_frexpf.S
@@ -288,7 +259,6 @@
   newlib/newlib/libm/machine/i386/f_log.S
   newlib/newlib/libm/machine/i386/f_tanf.S
   newlib/newlib/libm/machine/i386/f_tan.S
-  newlib/newlib/libm/machine/shared_x86/fenv.c
 
 [Sources]
   separate/newlib/uefi.c
@@ -656,6 +626,7 @@
   newlib/newlib/libc/stdio/wprintf.c
   newlib/newlib/libc/stdio/wscanf.c
   newlib/newlib/libc/stdio/wsetup.c
+  newlib/newlib/libc/stdio64/stdio64.c
   newlib/newlib/libc/stdlib/a64l.c
   newlib/newlib/libc/stdlib/abort.c
   newlib/newlib/libc/stdlib/abs.c
@@ -684,7 +655,6 @@
   newlib/newlib/libc/stdlib/efgcvt.c
   newlib/newlib/libc/stdlib/environ.c
   newlib/newlib/libc/stdlib/envlock.c
-  newlib/newlib/libc/stdlib/eprintf.c
   newlib/newlib/libc/stdlib/erand48.c
   newlib/newlib/libc/stdlib/exit.c
   newlib/newlib/libc/stdlib/_Exit.c

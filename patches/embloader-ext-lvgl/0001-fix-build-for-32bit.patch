@@ -1,0 +1,204 @@
+diff --git a/src/core/lv_obj_style.c b/src/core/lv_obj_style.c
+index dc947c986..7411fc326 100644
+--- a/src/core/lv_obj_style.c
++++ b/src/core/lv_obj_style.c
+@@ -336,7 +336,7 @@ void lv_obj_style_set_disabled(lv_obj_t * obj, const lv_style_t * style, lv_styl
+             return;
+         }
+     }
+-    LV_LOG_WARN("%p style was not found on %p widget with %6x selector", (void *)style, (void *)obj, selector);
++    LV_LOG_WARN("%p style was not found on %p widget with %6" PRIx32 " selector", (void *)style, (void *)obj, selector);
+ }
+ 
+ bool lv_obj_style_get_disabled(lv_obj_t * obj, const lv_style_t * style, lv_style_selector_t selector)
+@@ -348,7 +348,7 @@ bool lv_obj_style_get_disabled(lv_obj_t * obj, const lv_style_t * style, lv_styl
+         }
+     }
+ 
+-    LV_LOG_WARN("%p style was not found on %p widget with %6x selector", (void *)style, (void *)obj, selector);
++    LV_LOG_WARN("%p style was not found on %p widget with %6" PRIx32 " selector", (void *)style, (void *)obj, selector);
+     return false;
+ }
+ 
+diff --git a/src/drivers/uefi/lv_uefi.h b/src/drivers/uefi/lv_uefi.h
+index 6302555c1..eeabb0ce2 100644
+--- a/src/drivers/uefi/lv_uefi.h
++++ b/src/drivers/uefi/lv_uefi.h
+@@ -17,12 +17,15 @@
+         #elif defined(__i386__)
+             #define __LV_UEFI_ARCH_X86__
+             #define __LV_UEFI_32BIT__
++        #elif defined(__arm__)
++            #define __LV_UEFI_ARCH_ARM__
++            #define __LV_UEFI_32BIT__
+         #elif defined(__aarch64__)
+             #define __LV_UEFI_ARCH_AARCH64__
+             #define __LV_UEFI_64BIT__
+         #elif defined(__riscv_xlen) && __riscv_xlen == 64
+             #define __LV_UEFI_ARCH_RISCV64__
+             #define __LV_UEFI_64BIT__
+         #else
+             #error Architecture is not supported
+         #endif
+diff --git a/src/drivers/uefi/lv_uefi_display.c b/src/drivers/uefi/lv_uefi_display.c
+index 38b0cdacc..1f79afecb 100644
+--- a/src/drivers/uefi/lv_uefi_display.c
++++ b/src/drivers/uefi/lv_uefi_display.c
+@@ -245,7 +245,7 @@ static void _display_flush_cb(lv_display_t * display, const lv_area_t * area, ui
+                  h,
+                  display_ctx->gop_protocol->Mode->Info->HorizontalResolution * sizeof(EFI_GRAPHICS_OUTPUT_BLT_PIXEL));
+     if(status != EFI_SUCCESS) {
+-        LV_LOG_ERROR("[lv_uefi] Blt failed with error code: %llx.", status);
++        LV_LOG_ERROR("[lv_uefi] Blt failed with error code: %llx.", (unsigned long long)status);
+         goto error;
+     }
+ 
+diff --git a/src/drivers/uefi/lv_uefi_indev_keyboard.c b/src/drivers/uefi/lv_uefi_indev_keyboard.c
+index 308057ccf..17a67d61b 100644
+--- a/src/drivers/uefi/lv_uefi_indev_keyboard.c
++++ b/src/drivers/uefi/lv_uefi_indev_keyboard.c
+@@ -151,7 +151,7 @@ void lv_uefi_simple_text_input_indev_add_all(lv_indev_t * indev)
+ 
+     status = gLvEfiBS->LocateHandleBuffer(ByProtocol, &_uefi_guid_simple_text_input, NULL, &no_handles, &handles);
+     if(status != EFI_SUCCESS) {
+-        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(SIMPLE_TEXT_INPUT_EX) failed with error code %llx.", status);
++        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(SIMPLE_TEXT_INPUT_EX) failed with error code %llx.", (unsigned long long)status);
+         return;
+     }
+ 
+diff --git a/src/drivers/uefi/lv_uefi_indev_pointer.c b/src/drivers/uefi/lv_uefi_indev_pointer.c
+index 9e1c51215..15bf3e07c 100644
+--- a/src/drivers/uefi/lv_uefi_indev_pointer.c
++++ b/src/drivers/uefi/lv_uefi_indev_pointer.c
+@@ -156,7 +156,7 @@ void lv_uefi_simple_pointer_indev_add_all(lv_indev_t * indev)
+ 
+     status = gLvEfiBS->LocateHandleBuffer(ByProtocol, &_uefi_guid_simple_pointer, NULL, &no_handles, &handles);
+     if(status != EFI_SUCCESS) {
+-        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(SIMPLE_POINTER) failed with error code %llx.", status);
++        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(SIMPLE_POINTER) failed with error code %llx.", (unsigned long long)status);
+         return;
+     }
+ 
+diff --git a/src/drivers/uefi/lv_uefi_indev_touch.c b/src/drivers/uefi/lv_uefi_indev_touch.c
+index f76ededdd..9e2f74c7c 100644
+--- a/src/drivers/uefi/lv_uefi_indev_touch.c
++++ b/src/drivers/uefi/lv_uefi_indev_touch.c
+@@ -159,7 +159,7 @@ void lv_uefi_absolute_pointer_indev_add_all(lv_indev_t * indev)
+ 
+     status = gLvEfiBS->LocateHandleBuffer(ByProtocol, &_uefi_guid_absolute_pointer, NULL, &no_handles, &handles);
+     if(status != EFI_SUCCESS) {
+-        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(ABSOLUTE_POINTER) failed with error code %llx.", status);
++        LV_LOG_ERROR("[lv_uefi] LocateHandleBuffer(ABSOLUTE_POINTER) failed with error code %llx.", (unsigned long long)status);
+         return;
+     }
+ 
+diff --git a/src/drivers/uefi/lv_uefi_private.c b/src/drivers/uefi/lv_uefi_private.c
+index e8c69769e..be31e80c4 100644
+--- a/src/drivers/uefi/lv_uefi_private.c
++++ b/src/drivers/uefi/lv_uefi_private.c
+@@ -111,7 +111,7 @@ void * lv_uefi_protocol_open(EFI_HANDLE handle, EFI_GUID * protocol)
+                      protocol->Data4[5],
+                      protocol->Data4[6],
+                      protocol->Data4[7],
+-                     status);
++                     (unsigned long long)status);
+         interface = NULL;
+     }
+ 
+@@ -148,7 +148,7 @@ void lv_uefi_protocol_close(EFI_HANDLE handle, EFI_GUID * protocol)
+                     protocol->Data4[5],
+                     protocol->Data4[6],
+                     protocol->Data4[7],
+-                    status);
++                    (unsigned long long)status);
+     }
+ }
+ 
+diff --git a/src/libs/bin_decoder/lv_bin_decoder.c b/src/libs/bin_decoder/lv_bin_decoder.c
+index 9c3157619..92e3d4b83 100644
+--- a/src/libs/bin_decoder/lv_bin_decoder.c
++++ b/src/libs/bin_decoder/lv_bin_decoder.c
+@@ -1127,7 +1127,7 @@ static lv_result_t decompress_image(lv_image_decoder_dsc_t * dsc, const lv_image
+ #endif
+     }
+     else {
+-        LV_LOG_WARN("Unknown compression method: %" LV_PRIu32, compressed->method);
++        LV_LOG_WARN("Unknown compression method: %u", (unsigned int)compressed->method);
+         return LV_RESULT_INVALID;
+     }
+ 
+diff --git a/src/others/font_manager/lv_font_manager.c b/src/others/font_manager/lv_font_manager.c
+index 57b0884b6..0a87f4279 100755
+--- a/src/others/font_manager/lv_font_manager.c
++++ b/src/others/font_manager/lv_font_manager.c
+@@ -438,7 +438,7 @@ static bool lv_font_manager_check_resource(lv_font_manager_t * manager)
+ 
+         lv_font_rec_node_t * node;
+         LV_LL_READ(rec_ll, node) {
+-            LV_LOG_WARN("font: %p(%d) -> ref: %s(%d)",
++            LV_LOG_WARN("font: %p(%d) -> ref: %s(%" PRIu32 ")",
+                         (void *)node,
+                         (int)node->font.line_height,
+                         node->refer_node_p->ft_info.name,
+@@ -454,7 +454,7 @@ static bool lv_font_manager_check_resource(lv_font_manager_t * manager)
+ 
+         lv_font_refer_node_t * node;
+         LV_LL_READ(refer_ll, node) {
+-            LV_LOG_WARN("font: %s(%d), ref_cnt = %d",
++            LV_LOG_WARN("font: %s(%" PRIu32 "), ref_cnt = %d",
+                         node->ft_info.name,
+                         node->ft_info.size,
+                         node->ref_cnt);
+@@ -492,7 +492,7 @@ static lv_font_refer_node_t * lv_font_manager_search_refer_node(lv_font_manager_
+     lv_font_refer_node_t * refer_node;
+     LV_LL_READ(&manager->refer_ll, refer_node) {
+         if(lv_font_info_is_equal(ft_info, &refer_node->ft_info)) {
+-            LV_LOG_INFO("font: %s(%d) matched", ft_info->name, ft_info->size);
++            LV_LOG_INFO("font: %s(%" PRIu32 ") matched", ft_info->name, ft_info->size);
+             return refer_node;
+         }
+     }
+@@ -525,7 +525,7 @@ static lv_font_t * lv_font_manager_create_font_wrapper(lv_font_manager_t * manag
+ 
+     font = font_src->class_p->create_cb(ft_info, font_src->src);
+     if(!font) {
+-        LV_LOG_ERROR("font create failed, name: %s, render_mode: %d, size: %d, style: %d",
++        LV_LOG_ERROR("font create failed, name: %s, render_mode: %" PRIu32 ", size: %" PRIu32 ", style: %" PRIu32,
+                      ft_info->name, ft_info->render_mode, ft_info->size, ft_info->style);
+         return NULL;
+     }
+@@ -591,7 +591,7 @@ static bool lv_font_manager_drop_font(lv_font_manager_t * manager, const lv_font
+     /* Check refer_node is existed */
+     lv_font_refer_node_t * refer_node = lv_font_manager_search_refer_node(manager, &node->ft_info);
+     if(!refer_node) {
+-        LV_LOG_WARN("NO record found for font: %s(%d),"
++        LV_LOG_WARN("NO record found for font: %s(%" PRIu32 "),"
+                     " it was not created by font manager",
+                     node->ft_info.name, node->ft_info.size);
+         return false;
+diff --git a/src/others/xml/lv_xml_component.c b/src/others/xml/lv_xml_component.c
+index 77f6b86d0..af811c2df 100644
+--- a/src/others/xml/lv_xml_component.c
++++ b/src/others/xml/lv_xml_component.c
+@@ -207,7 +207,7 @@ lv_result_t lv_xml_component_register_from_file(const char * path)
+     /* Create the buffer */
+     char * xml_buf = lv_malloc(file_size + 1);
+     if(xml_buf == NULL) {
+-        LV_LOG_WARN("Memory allocation failed for file %s (%d bytes)", path, file_size + 1);
++        LV_LOG_WARN("Memory allocation failed for file %s (%" PRId32 " bytes)", path, file_size + 1);
+         lv_free(filename);
+         lv_fs_close(&f);
+         return LV_RESULT_INVALID;
+diff --git a/src/others/xml/lv_xml_translation.c b/src/others/xml/lv_xml_translation.c
+index 626b55cc3..781443a86 100644
+--- a/src/others/xml/lv_xml_translation.c
++++ b/src/others/xml/lv_xml_translation.c
+@@ -61,7 +61,7 @@ lv_result_t lv_xml_translation_register_from_file(const char * path)
+     char * xml_buf = lv_malloc(file_size + 1);
+     LV_ASSERT_MALLOC(xml_buf);
+     if(xml_buf == NULL) {
+-        LV_LOG_WARN("Memory allocation failed for file %s (%d bytes)", path, file_size + 1);
++        LV_LOG_WARN("Memory allocation failed for file %s (%" PRId32 " bytes)", path, file_size + 1);
+         lv_fs_close(&f);
+         return LV_RESULT_INVALID;
+     }
