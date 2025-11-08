@@ -33,7 +33,7 @@ static lv_result_t nanosvg_info(lv_image_decoder_t* decoder, lv_image_decoder_ds
 }
 
 static lv_draw_buf_t* svg_decode(const lv_image_dsc_t* src) {
-	lv_draw_buf_t *buf;
+	lv_draw_buf_t *buf = NULL;
 	NSVGrasterizer *r = NULL;
 	NSVGimage *m = NULL;
 	float fdpi = (float) lv_display_get_dpi(NULL);
