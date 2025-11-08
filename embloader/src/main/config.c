@@ -53,6 +53,7 @@ bool embloader_init() {
 void embloader_load_ktype() {
 	list *p;
 	if (g_embloader.ktype) free(g_embloader.ktype);
+	g_embloader.ktype = NULL;
 	confignode *np = confignode_map_get(g_embloader.config, "profiles");
 	if (!np) return;
 	if ((p = list_first(g_embloader.profiles))) do {
@@ -62,9 +63,8 @@ void embloader_load_ktype() {
 		if (!cp) continue;
 		char *ktype = confignode_path_get_string(cp, "ktype", NULL, NULL);
 		if (!ktype) continue;
-		if (g_embloader.ktype) free(g_embloader.ktype);
 		g_embloader.ktype = ktype;
-		if (g_embloader.ktype) log_debug(
+		log_debug(
 			"use ktype %s from profile %s",
 			g_embloader.ktype, profile
 		);
