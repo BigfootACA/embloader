@@ -174,7 +174,7 @@ function run_qemu_aarch64_release(){
 function run_qemu_aarch64(){
 	case "$EDK2_TARGET" in
 		RELEASE) run_qemu_aarch64_release ;;
-		DEBUG) run_qemu_aarch64_debug ;;
+		DEBUG|NOOPT) run_qemu_aarch64_debug ;;
 		*) echo "Unknown EDK2_TARGET: $EDK2_TARGET"; exit 1 ;;
 	esac
 }
