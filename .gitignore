@@ -56,7 +56,6 @@ fonts.dir
 compile_commands.json
 __pycache__
 /Build
-/edk2
 /local
 !/assets/*.ttf
 /src

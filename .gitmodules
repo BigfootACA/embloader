@@ -30,3 +30,7 @@
 	path = embloader/ext/nanosvg
 	url = https://github.com/memononen/nanosvg
 	ignore = dirty
+[submodule "edk2"]
+	path = edk2
+	url = https://github.com/tianocore/edk2
+	ignore = dirty
