@@ -91,6 +91,10 @@ static EFI_STATUS gui_init(struct gui_menu_ctx *ctx) {
 		return EFI_UNSUPPORTED;
 	}
 	display = lv_uefi_display_create(ctx->gop_handle);
+	if (!display) {
+		log_warning("failed to create lvgl display");
+		return EFI_UNSUPPORTED;
+	}
 	lv_display_set_default(display);
 	ctx->group = lv_group_create();
 	lv_group_set_default(ctx->group);
