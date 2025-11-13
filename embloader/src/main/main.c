@@ -29,7 +29,9 @@ static int config_print(const char *str) {
 #error EMBLOADER_VERSION is not set
 #endif
 
-static const char *bootloader_info = "#### LoaderInfo: embloader " EMBLOADER_VERSION " ####";
+static const char *bootloader_info =
+	"#### LoaderInfo: systemd 999." EMBLOADER_VERSION " (embloader " EMBLOADER_VERSION ") ####\n\0"
+	"#### EmbloaderVersion: embloader " EMBLOADER_VERSION " ####\n";
 
 EFI_STATUS EFIAPI efi_main(
 	EFI_HANDLE ImageHandle,
