@@ -59,11 +59,7 @@ bool efi_parse_ansi_sequence(
 	int *ansi_seq_len,
 	bool *esc_pending
 ) {
-	if (key->ScanCode == SCAN_DELETE && key->UnicodeChar == 0) {
-		key->ScanCode = SCAN_NULL;
-		key->UnicodeChar = CHAR_BACKSPACE;
-		return true;
-	} else if (key->ScanCode == SCAN_ESC && key->UnicodeChar == 0) {
+	if (key->ScanCode == SCAN_ESC && key->UnicodeChar == 0) {
 		*ansi_state = STATE_ESC;
 		*ansi_seq_len = 0;
 		memset(ansi_sequence, 0, 8);
