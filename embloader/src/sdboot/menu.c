@@ -1,5 +1,6 @@
 #include <Library/UefiBootServicesTableLib.h>
 #include <Library/MemoryAllocationLib.h>
+#include <inttypes.h>
 #include "internal.h"
 #include "debugs.h"
 #include "efi-utils.h"
@@ -190,6 +191,7 @@ EFI_STATUS sdboot_boot_load_menu() {
 	EFI_HANDLE *handles = NULL;
 	embloader_dir dir;
 	UINTN handle_count = 0;
+	EFI_LOADED_IMAGE_PROTOCOL *li;
 	if (!confignode_path_get_bool(
 		g_embloader.config, "menu.sdboot.enabled", true, NULL
 	)) {
@@ -210,9 +212,24 @@ EFI_STATUS sdboot_boot_load_menu() {
 	dir.handle = g_embloader.dir.handle;
 	if (sdboot_check_fs(&dir)) {
 		status = sdboot_boot_load_root(menu, &dir);
-		if (!EFI_ERROR(status)) have_success = true;
+		if (!EFI_ERROR(status)) {
+			log_info("loaded systemd-boot menu from previous device");
+			have_success = true;
+			if (!use_multiple) goto done;
+		}
 	}
 	if (have_success && !use_multiple) goto done;
+	if ((li = efi_get_loaded_image())) {
+		dir.handle = li->DeviceHandle;
+		if (sdboot_check_fs(&dir)) {
+			status = sdboot_boot_load_root(menu, &dir);
+			if (!EFI_ERROR(status)) {
+				log_info("loaded systemd-boot menu from current device");
+				have_success = true;
+			if (!use_multiple) goto done;
+			}
+		}
+	}
 	status = gBS->LocateHandleBuffer(
 		ByProtocol,
 		&gEfiSimpleFileSystemProtocolGuid,
@@ -225,8 +242,11 @@ EFI_STATUS sdboot_boot_load_menu() {
 		if (EFI_ERROR(status)) {
 			dir.root->Close(dir.root);
 			dir.root = NULL;
-		} else have_success = true;
-		if (have_success && !use_multiple) goto done;
+		} else {
+			log_info("loaded systemd-boot menu from scanned device %" PRIuPTR, i);
+			have_success = true;
+			if (!use_multiple) goto done;
+		}
 	}
 done:
 	if (handles) FreePool(handles);
