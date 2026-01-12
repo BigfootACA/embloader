@@ -1,3 +1,25 @@
+embloader (0.4) unstable; urgency=medium
+
+  1d80688 embloader: sdboot: types.c: allow number 0/1 for boolean
+  b296477 embloader: menu: menus: tui_menu.c: fix message display overflow
+  f9cba8d embloader: menu: menus: tui_menu.c: add msgbox supports
+  9ac0e7d embloader: sdboot: menu.c: fix sdboot config load if no embloader configs found
+  df4e14f embloader: main: main.c: use fake LoaderInfo for bootctl update
+  29b935a embloader: lib: readline.c: do not map delete to backspace
+  2ced1a6 embloader: menu: menus: gui_menu.c: fix crash if gop is invalid
+  45c2e9a add edk2 as submodule
+  b9f0d86 embloader: fix build error for 32-bits system
+  a4dd1f6 embloader: menu: menus: tui_menu.c: refactor to improve performce and fix editor
+  1bce854 embloader: embloader.dsc: add NOOPT target
+  b582ce6 embloader: menu: menu.c: fix editor cmdline load
+  66fedbb embloader: main: config.c: fix double free
+  7fed7a1 embloader: main: main.c: disable watchdog in menu
+  75f5b95 embloader: linux: initramfs.c: fix kernel invalid magic at start of compressed archive
+  1db0e7f embloader: ext: separate: nanosvg: lv_nanosvg.c: fix uninitialized variables
+  d3cd855 embloader: main: main.c: add LoaderInfo for systemd bootctl
+
+ -- BigfootACA <bigfoot@radxa.com> Mon, 12 Jan 2026 11:00:00 +0800
+
 embloader (0.3) unstable; urgency=medium
 
   b7312be patches: fix build for riscv64
