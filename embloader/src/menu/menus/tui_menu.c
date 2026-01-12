@@ -91,6 +91,62 @@ static void reset_cursor(struct tui_context *ctx) {
 	ctx->out->SetCursorPosition(ctx->out, 0, ctx->row - 1);
 }
 
+static void draw_msgbox(struct tui_context *ctx, const char *msg) {
+	size_t i;
+	size_t msg_len = strlen(msg);
+	size_t msg_cols = MAX(4, MIN(msg_len, MIN(72, ctx->col / 2)));
+	size_t msg_rows = MAX(1, (msg_len + msg_cols - 1) / msg_cols);
+	size_t box_cols = msg_cols + 4, box_rows = msg_rows + 4;
+	UINTN box_x = (ctx->col - box_cols) / 2;
+	UINTN box_y = (ctx->row - box_rows) / 2;
+	CHAR16 draw_buff[80];
+	EFI_INPUT_KEY key;
+	EFI_STATUS status;
+	UINTN wl;
+	if (box_cols >= ARRAY_SIZE(draw_buff)) return;
+	ctx->out->SetAttribute(ctx->out, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
+	draw_buff[box_cols] = 0;
+	SetMem16(draw_buff, box_cols * sizeof(CHAR16), L' ');
+	draw_buff[0] = L'┌';
+	for (i = 1; i < box_cols - 1; i++) draw_buff[i] = L'─';
+	draw_buff[box_cols - 1] = L'┐';
+	write_at(ctx, box_x, box_y, draw_buff);
+	SetMem16(draw_buff, box_cols * sizeof(CHAR16), L' ');
+	draw_buff[0] = L'│';
+	draw_buff[box_cols - 1] = L'│';
+	write_at(ctx, box_x, box_y + 1, draw_buff);
+	write_at(ctx, box_x, box_y + box_rows - 2, draw_buff);
+	for (i = 0; i < msg_rows; i++) {
+		size_t line_len = MIN(msg_len - i * msg_cols, msg_cols);
+		SetMem16(draw_buff, box_cols * sizeof(CHAR16), L' ');
+		draw_buff[0] = L'│';
+		wl = 0;
+		AsciiStrnToUnicodeStrS(
+			msg + i * msg_cols, line_len,
+			&draw_buff[2], msg_cols + 1, &wl
+		);
+		if (wl > 0 && draw_buff[wl + 2] == 0)
+			draw_buff[wl + 2] = L' ';
+		draw_buff[box_cols - 1] = L'│';
+		write_at(ctx, box_x, box_y + 2 + i, draw_buff);
+	}
+	SetMem16(draw_buff, box_cols * sizeof(CHAR16), L' ');
+	draw_buff[0] = L'└';
+	for (i = 1; i < box_cols - 1; i++) draw_buff[i] = L'─';
+	draw_buff[box_cols - 1] = L'┘';
+	write_at(ctx, box_x, box_y + box_rows - 1, draw_buff);
+	ctx->out->SetCursorPosition(ctx->out, 0, ctx->row - 1);
+	while (true) {
+		memset(&key, 0, sizeof(key));
+		gBS->Stall(50000);
+		status = ctx->in->ReadKeyStroke(ctx->in, &key);
+		if (status != EFI_NOT_READY) break;
+	}
+	for (i = 0; i < box_rows; i++)
+		set_clear_line(ctx, 0, box_y + i, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
+	ctx->force_redraw = true;
+}
+
 static void redraw_editor_dialog(
 	struct tui_context *ctx,
 	embloader_loader *item,
@@ -220,7 +276,11 @@ static void show_editor_dialog(struct tui_context *ctx, embloader_loader *item) 
 	UINTN visible_lines = content_end_row - content_start_row + 1;
 	int ansi_state = STATE_NORMAL, ansi_seq_len = 0;
 	char *buffer, ansi_sequence[8];
-	if (!item || !item->editor) return;
+	if (!item) return;
+	if (!item->editor) {
+		draw_msgbox(ctx, "Editor is not available for this item.");
+		return;
+	}
 	if (!(buffer = malloc(16384))) {
 		log_error("failed to allocate memory for bootargs editor");
 		return;
