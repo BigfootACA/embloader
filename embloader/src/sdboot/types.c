@@ -21,11 +21,11 @@ bool sdboot_parse_bool(
 	size_t len,
 	bool *out
 ) {
-	if (stringn_is_true(str, len)) {
+	if (stringn_is_true(str, len) || strncmp(str, "1", len) == 0) {
 		*out = true;
 		return true;
 	}
-	if (stringn_is_false(str, len)) {
+	if (stringn_is_false(str, len) || strncmp(str, "0", len) == 0) {
 		*out = false;
 		return true;
 	}
