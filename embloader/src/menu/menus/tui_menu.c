@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <stdarg.h>
 #include <ctype.h>
+#include <math.h>
 #include "embloader.h"
 #include "bootmenu.h"
 #include "encode.h"
@@ -516,11 +517,15 @@ static void draw_single_item(struct tui_context *ctx, int index, UINTN display_r
 		EFI_TEXT_ATTR(EFI_BLACK, EFI_LIGHTGRAY) :
 		EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK)
 	);
+	size_t idx_len = index == 0 ? 1 : (size_t)log10((double)index) + 1;
+	size_t title_len = item->title ? strlen(item->title) : 0;
+	int avail_cols = ctx->col - idx_len - 12;
 	printf_utf8_at(
-		ctx, 2, display_row, "%c %d. %s",
+		ctx, 2, display_row, "%c %d. %.*s%s",
 		is_selected ? '>' : ' ',
-		index,
-		item->title ? item->title : "(unnamed)"
+		index, avail_cols,
+		item->title ? item->title : "(unnamed)",
+		title_len > avail_cols ? "..." : ""
 	);
 }
 
@@ -582,9 +587,13 @@ static void draw_bottom(struct tui_context *ctx, bool update_layout) {
 	}
 	if (ctx->def_loader) {
 		ctx->out->SetAttribute(ctx->out, EFI_TEXT_ATTR(EFI_YELLOW, EFI_BLACK));
+		size_t idx_len = ctx->def_num == 0 ? 1 : (size_t)log10((double)ctx->def_num) + 1;
+		size_t title_len = ctx->def_loader->title ? strlen(ctx->def_loader->title) : 0;
+		int avail_cols = ctx->col - idx_len - 20;
 		printf_utf8_at(
-			ctx, 2, info_row--, "Default: (%d) %s", ctx->def_num,
-			ctx->def_loader->title ? ctx->def_loader->title : "(unnamed)"
+			ctx, 2, info_row--, "Default: (%d) %.*s%s", ctx->def_num, avail_cols,
+			ctx->def_loader->title ? ctx->def_loader->title : "(unnamed)",
+			title_len > avail_cols ? "..." : ""
 		);
 	}
 	if (ctx->max_visible_items != 0 && ctx->item_count > (int)ctx->max_visible_items) {
