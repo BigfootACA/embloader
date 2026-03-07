@@ -209,6 +209,18 @@ EFI_STATUS sdboot_boot_load_menu() {
 		g_embloader.config, "menu.sdboot.multi-partitions", false, NULL
 	);
 	memset(&dir, 0, sizeof(dir));
+	if ((li = efi_get_loaded_image())) {
+		dir.handle = li->DeviceHandle;
+		if (sdboot_check_fs(&dir)) {
+			status = sdboot_boot_load_root(menu, &dir);
+			if (!EFI_ERROR(status)) {
+				log_info("loaded systemd-boot menu from current device");
+				have_success = true;
+				if (!use_multiple) goto done;
+			}
+		}
+	}
+	if (have_success && !use_multiple) goto done;
 	dir.handle = g_embloader.dir.handle;
 	if (sdboot_check_fs(&dir)) {
 		status = sdboot_boot_load_root(menu, &dir);
@@ -219,17 +231,6 @@ EFI_STATUS sdboot_boot_load_menu() {
 		}
 	}
 	if (have_success && !use_multiple) goto done;
-	if ((li = efi_get_loaded_image())) {
-		dir.handle = li->DeviceHandle;
-		if (sdboot_check_fs(&dir)) {
-			status = sdboot_boot_load_root(menu, &dir);
-			if (!EFI_ERROR(status)) {
-				log_info("loaded systemd-boot menu from current device");
-				have_success = true;
-			if (!use_multiple) goto done;
-			}
-		}
-	}
 	status = gBS->LocateHandleBuffer(
 		ByProtocol,
 		&gEfiSimpleFileSystemProtocolGuid,
