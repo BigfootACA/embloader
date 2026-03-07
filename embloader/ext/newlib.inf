@@ -855,6 +855,7 @@
   newlib/newlib/libc/string/wmempcpy.c
   newlib/newlib/libc/string/wmemset.c
   newlib/newlib/libc/string/xpg_strerror_r.c
+  newlib/newlib/libc/syscalls/syswrite.c
   newlib/newlib/libc/time/asctime.c
   newlib/newlib/libc/time/asctime_r.c
   newlib/newlib/libc/time/clock.c
