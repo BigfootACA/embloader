@@ -49,7 +49,7 @@
   embloader/src/main/embloader.inf
 
 [BuildOptions]
-  GCC:*_*_*_CC_FLAGS = -D_HAVE_LONG_DOUBLE -U_FORTIFY_SOURCE -Wno-char-subscripts
+  GCC:*_*_*_CC_FLAGS = -D_HAVE_LONG_DOUBLE -D_WANT_IO_C99_FORMATS -U_FORTIFY_SOURCE -Wno-char-subscripts
   GCC:*_*_ARM_CC_FLAGS = -D_LDBL_EQ_DBL -D__LARGE64_FILES
   GCC:*_*_IA32_CC_FLAGS = -D_LDBL_EQ_DBL -D__LARGE64_FILES
   GCC:*_*_ARM_DLINK2_FLAGS = -lgcc -Wl,--no-warn-mismatch
