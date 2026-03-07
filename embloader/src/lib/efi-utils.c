@@ -97,35 +97,6 @@ EFI_HANDLE efi_get_parent_device(EFI_HANDLE handle) {
 	return parent;
 }
 
-void* efi_file_get_info_by(EFI_FILE_PROTOCOL* f, EFI_GUID* guid) {
-	void* info = NULL;
-	UINTN size = 0;
-	EFI_STATUS st;
-	if (!f || !guid) return NULL;
-	st = f->GetInfo(f, guid, &size, NULL);
-	if (st != EFI_BUFFER_TOO_SMALL || size == 0) return NULL;
-	info = malloc(size);
-	if (!info) return NULL;
-	st = f->GetInfo(f, guid, &size, info);
-	if (EFI_ERROR(st)) {
-		free(info);
-		return NULL;
-	}
-	return info;
-}
-
-EFI_FILE_SYSTEM_INFO* efi_get_fs_info(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs) {
-	EFI_STATUS st;
-	EFI_FILE_PROTOCOL* root = NULL;
-	EFI_FILE_SYSTEM_INFO* info = NULL;
-	if (!fs) return NULL;
-	st = fs->OpenVolume(fs, &root);
-	if (EFI_ERROR(st) || !root) return NULL;
-	info = efi_file_get_info_by(root, &gEfiFileSystemInfoGuid);
-	if (root) root->Close(root);
-	return info;
-}
-
 EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* efi_get_current_fs(void) {
 	EFI_STATUS st;
 	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs = NULL;

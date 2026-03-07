@@ -15,8 +15,6 @@ enum ansi_state {
 extern EFI_HANDLE efi_get_parent_device(EFI_HANDLE handle);
 extern EFI_LOADED_IMAGE_PROTOCOL* efi_get_loaded_image(void);
 extern EFI_HANDLE efi_get_current_device(void);
-extern void* efi_file_get_info_by(EFI_FILE_PROTOCOL* f, EFI_GUID* guid);
-extern EFI_FILE_SYSTEM_INFO* efi_get_fs_info(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs);
 extern EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* efi_get_current_fs(void);
 extern bool efi_timestamp_to_time(time_t in, EFI_TIME* out);
 extern bool efi_timeval_to_time(struct timeval* in, EFI_TIME* out);

@@ -13,6 +13,64 @@
 #include "log.h"
 
 /**
+ * @brief Get file information using EFI_FILE_PROTOCOL
+ *
+ * This function retrieves file information based on the provided GUID.
+ *
+ * @param file Pointer to the opened EFI_FILE_PROTOCOL
+ * @param guid GUID of the information type to retrieve
+ * @param info Pointer to store the retrieved information
+ * @return EFI_SUCCESS on success, error status on failure
+ */
+EFI_STATUS efi_file_get_info_by(EFI_FILE_PROTOCOL* file, EFI_GUID *guid, VOID** info, UINTN *info_size) {
+	EFI_STATUS status;
+	VOID* vinfo = NULL;
+	UINTN vinfo_size = 0;
+	if (!file) return EFI_INVALID_PARAMETER;
+	if (info) *info = NULL;
+	if (info_size) *info_size = 0;
+	status = file->GetInfo(file, guid, &vinfo_size, NULL);
+	if (status != EFI_BUFFER_TOO_SMALL)
+		return EFI_ERROR(status) ? status : EFI_INVALID_PARAMETER;
+	vinfo = AllocatePool(vinfo_size);
+	if (!vinfo) return EFI_OUT_OF_RESOURCES;
+	status = file->GetInfo(file, guid, &vinfo_size, vinfo);
+	if (EFI_ERROR(status)) {
+		FreePool(vinfo);
+		return status;
+	}
+	if (info) *info = vinfo;
+	if (info_size) *info_size = vinfo_size;
+	if (!info) FreePool(vinfo);
+	return EFI_SUCCESS;
+}
+
+/**
+ * @brief Get EFI_FILE_INFO for a file
+ *
+ * This function retrieves the EFI_FILE_INFO structure for the given file.
+ *
+ * @param file Pointer to the opened EFI_FILE_PROTOCOL
+ * @param info Pointer to store the retrieved EFI_FILE_INFO
+ * @return EFI_SUCCESS on success, error status on failure
+ */
+EFI_STATUS efi_file_get_info(EFI_FILE_PROTOCOL* file, EFI_FILE_INFO** info) {
+	return efi_file_get_info_by(file, &gEfiFileInfoGuid, (VOID**)info, NULL);
+}
+
+EFI_STATUS efi_get_fs_info(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs, EFI_FILE_SYSTEM_INFO** info) {
+	EFI_STATUS st;
+	EFI_FILE_PROTOCOL* root = NULL;
+	if (!fs || !info) return EFI_INVALID_PARAMETER;
+	*info = NULL;
+	st = fs->OpenVolume(fs, &root);
+	if (EFI_ERROR(st) || !root) return EFI_INVALID_PARAMETER;
+	st = efi_file_get_info_by(root, &gEfiFileSystemInfoGuid, (VOID**)info, NULL);
+	if (root) root->Close(root);
+	return st;
+}
+
+/**
  * @brief Get the size of an EFI file
  *
  * This function retrieves the file size by querying the file information.
@@ -24,22 +82,35 @@
 EFI_STATUS efi_file_get_size(EFI_FILE_PROTOCOL* file, size_t* size) {
 	EFI_STATUS status;
 	EFI_FILE_INFO* file_info = NULL;
-	UINTN info_size = 0;
 	if (!file || !size) return EFI_INVALID_PARAMETER;
 	*size = 0;
-	status = file->GetInfo(file, &gEfiFileInfoGuid, &info_size, NULL);
-	if (status != EFI_BUFFER_TOO_SMALL)
-		return EFI_ERROR(status) ? status : EFI_INVALID_PARAMETER;
-	file_info = AllocatePool(info_size);
-	if (!file_info) return EFI_OUT_OF_RESOURCES;
-	status = file->GetInfo(file, &gEfiFileInfoGuid, &info_size, file_info);
-	if (EFI_ERROR(status)) {
-		FreePool(file_info);
-		return status;
-	}
+	status = efi_file_get_info(file, &file_info);
+	if (EFI_ERROR(status)) return status;
 	*size = (size_t) file_info->FileSize;
 	FreePool(file_info);
 	return EFI_SUCCESS;
+}
+
+/**
+ * @brief Set the size of an EFI file
+ *
+ * This function sets the file size by updating the file information.
+ *
+ * @param file Pointer to the opened EFI_FILE_PROTOCOL
+ * @param size New file size
+ * @return EFI_SUCCESS on success, error status on failure
+ */
+EFI_STATUS efi_file_set_size(EFI_FILE_PROTOCOL* file, size_t size) {
+	EFI_STATUS status;
+	UINTN info_size = 0;
+	EFI_FILE_INFO* file_info = NULL;
+	if (!file) return EFI_INVALID_PARAMETER;
+	status = efi_file_get_info_by(file, &gEfiFileInfoGuid, (VOID**)&file_info, &info_size);
+	if (EFI_ERROR(status)) return status;
+	file_info->FileSize = (UINT64) size;
+	status = file->SetInfo(file, &gEfiFileInfoGuid, info_size, file_info);
+	FreePool(file_info);
+	return status;
 }
 
 /**
