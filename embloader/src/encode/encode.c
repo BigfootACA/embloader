@@ -139,3 +139,24 @@ EFI_STATUS encode_convert(encode_convert_ctx* ctx) {
 	return EFI_UNSUPPORTED;
 }
 
+/**
+ * @brief Lookup encoding by string name.
+ * This function maps common encoding names (e.g., "utf-8", "utf16") to
+ * the corresponding encoding enum values.
+ *
+ * @param name String name of the encoding to look up
+ * @param enc Pointer to store the resulting encoding enum value
+ * @return true if the encoding was found and set,
+ *         false if the name is unrecognized
+ */
+bool encode_lookup(const char *name, encoding *enc) {
+	if (!name || !enc) return false;
+	if (strcasecmp(name, "utf-8") == 0 || strcasecmp(name, "utf8") == 0)
+		*enc = ENC_UTF8;
+	else if (strcasecmp(name, "utf-16") == 0 || strcasecmp(name, "utf16") == 0)
+		*enc = ENC_UTF16;
+	else if (strcasecmp(name, "none") == 0)
+		*enc = ENC_NONE;
+	else return false;
+	return true;
+}

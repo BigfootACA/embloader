@@ -47,4 +47,7 @@ extern CHAR16* encode_utf8_to_utf16(const char *utf8);
 
 /** Convert UTF-16 string to UTF-8 (allocates memory) */
 extern char* encode_utf16_to_utf8(const CHAR16 *utf16);
+
+/** Lookup encoding by string name */
+extern bool encode_lookup(const char *name, encoding *enc);
 #endif
