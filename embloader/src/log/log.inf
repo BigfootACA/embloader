@@ -1,0 +1,34 @@
+[Defines]
+  INF_VERSION                    = 0x00010005
+  BASE_NAME                      = embloader_log
+  FILE_GUID                      = 81770F4D-975A-4631-B280-1720546937CA
+  MODULE_TYPE                    = UEFI_APPLICATION
+  VERSION_STRING                 = 1.0
+  LIBRARY_CLASS                  = embloader_log
+
+[Packages]
+  embloader/embloader.dec
+  MdePkg/MdePkg.dec
+
+[LibraryClasses]
+  BaseLib
+  UefiLib
+  PrintLib
+  UefiRuntimeServicesTableLib
+  libyaml
+  jsonc
+  newlib
+  regexp
+  embloader_lib
+  embloader_configfile
+
+[Sources]
+  backends/file.c
+  backends/stdio.c
+  backends.c
+  backend.c
+  base.c
+  filter.c
+  format.c
+  print.c
+  store.c

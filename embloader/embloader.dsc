@@ -15,6 +15,7 @@
 [LibraryClasses]
   embloader|embloader/src/main/embloader.inf
   embloader_lib|embloader/src/lib/lib.inf
+  embloader_log|embloader/src/log/log.inf
   embloader_encode|embloader/src/encode/encode.inf
   embloader_configfile|embloader/src/configfile/configfile.inf
   embloader_smbios|embloader/src/smbios/smbios.inf

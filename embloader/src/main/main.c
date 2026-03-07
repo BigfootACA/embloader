@@ -49,6 +49,7 @@ EFI_STATUS EFIAPI efi_main(
 		log_debug("Final configuration:");
 		confignode_print(g_embloader.config, config_print);
 	}
+	log_init();
 	log_info("parsing smbios");
 	embloader_load_smbios();
 	if (confignode_path_get_bool(g_embloader.config, "log.print-sysinfo", false, NULL)) {

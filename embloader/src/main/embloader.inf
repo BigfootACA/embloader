@@ -23,6 +23,7 @@
   embloader_configfile
   embloader_encode
   embloader_lib
+  embloader_log
   embloader_linux
   embloader_smbios
   embloader_menu

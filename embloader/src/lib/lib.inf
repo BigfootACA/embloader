@@ -25,7 +25,6 @@
   efi-utils.c
   file-utils.c
   list.c
-  log.c
   missing.c
   path.c
   readable.c
