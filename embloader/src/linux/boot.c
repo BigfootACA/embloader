@@ -16,7 +16,10 @@ EFI_STATUS linux_boot_use_efi(linux_data *data) {
 	EFI_HANDLE initrd_hand = NULL;
 	if (!data) return EFI_INVALID_PARAMETER;
 	if (data->fdt) linux_install_fdt(data->fdt);
-	else if(!g_embloader.fdt) embloader_prepare_boot();
+	else if(!g_embloader.fdt) {
+		status = embloader_prepare_boot();
+		if (EFI_ERROR(status)) return status;
+	}
 	if (data->initramfs && data->initramfs_size > 0) {
 		status = linux_initramfs_register(
 			data->initramfs,

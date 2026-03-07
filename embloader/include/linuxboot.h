@@ -30,13 +30,22 @@ struct linux_data {
 	char *bootargs;
 };
 
+enum embloader_dtbo_on_error {
+	DTBO_ERROR_UNKNOWN,
+	DTBO_ERROR_FAILURE,   //< If any DTBO fails to apply, fail the boot
+	DTBO_ERROR_IGNORE,    //< Ignore any DTBO apply failure and continue boot
+	DTBO_ERROR_NEEDONE,   //< At least one DTBO must be successfully applied, otherwise fail the boot
+	DTBO_ERROR_REVERT,    //< If any DTBO fails to apply, revert all applied DTBOs and continue boot without overlays
+};
+
+extern enum embloader_dtbo_on_error linux_get_dtbo_on_error();
 extern linux_bootinfo* linux_bootinfo_parse(confignode *node);
 extern void linux_bootinfo_clean(linux_bootinfo *info);
 extern fdt linux_try_load_dtb(EFI_FILE_PROTOCOL *base, const char *dtb, bool grow);
 extern bool linux_load_default_dtb();
 extern bool linux_apply_dtbo(const char *dtbo_name, fdt base, fdt dtbo);
 extern bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *dtbo_dir);
-extern bool linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir);
+extern int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error);
 extern bool linux_dtbo_write_overrides(fdt fdt, confignode *overrides);
 extern char* linux_prepare_bootargs(list *def_bootargs);
 extern char* linux_bootinfo_prepare_bootargs(linux_bootinfo *info);

@@ -11,6 +11,35 @@
 #include <ufdt_overlay.h>
 
 /**
+ * @brief Get DTBO on error behavior from configuration
+ *
+ * This function reads the "devicetree.dtbo-on-error" configuration value to determine
+ * how the system should behave when applying a device tree overlay (DTBO) fails.
+ *
+ * @return enum embloader_dtbo_on_error The configured behavior for DTBO application errors
+ */
+enum embloader_dtbo_on_error linux_get_dtbo_on_error() {
+	char *value = confignode_path_get_string(
+		g_embloader.config,
+		"devicetree.dtbo-on-error", "ignore", NULL
+	);
+	enum embloader_dtbo_on_error result = DTBO_ERROR_FAILURE;
+	if (value) {
+		if (strcasecmp(value, "failure") == 0)
+			result = DTBO_ERROR_FAILURE;
+		else if (strcasecmp(value, "ignore") == 0)
+			result = DTBO_ERROR_IGNORE;
+		else if (strcasecmp(value, "needone") == 0)
+			result = DTBO_ERROR_NEEDONE;
+		else if (strcasecmp(value, "revert") == 0)
+			result = DTBO_ERROR_REVERT;
+		else log_warning("unknown dtbo-on-error value %s", value);
+		free(value);
+	}
+	return result;
+}
+
+/**
  * @brief Get device tree overlay directory paths
  *
  * This function retrieves the device tree overlay directory path from the system
@@ -190,25 +219,35 @@ bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *d
  * @param base EFI file protocol for file access
  * @param fdt Base device tree to apply overlays to
  * @param alt_dir List of alternative directories to search for overlays
- * @return bool Returns true if at least one overlay was successfully applied, false otherwise
+ * @param on_error Behavior to follow if an overlay fails to apply
+ * @return int Returns the number of successfully applied overlays,
+ *             -1 if overlays fail when on_error is DTBO_ERROR_FAIL,
+ *             0 if no overlays configured
  */
-bool linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir) {
+int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error) {
 	if (!fdt) return false;
-	bool success = false, is_empty = true;
+	int applied_count = 0;
+	bool is_empty = true;
 	list *dtbo_dir = embloader_dt_get_dtbo_dir();
 	if (!dtbo_dir) {
 		log_warning("no dtbo directory configured, skip apply dtbo");
-		return true;
+		return 0;
 	}
 	list *x = list_duplicate_chars(alt_dir, NULL);
 	if (x) list_obj_add(&dtbo_dir, x);
 	list_reverse(dtbo_dir);
 	confignode_path_foreach(iter, g_embloader.config, "devicetree.overlays") {
 		is_empty = false;
-		if (linux_load_dtbo(base, fdt, iter.node, dtbo_dir)) success = true;
+		if (linux_load_dtbo(base, fdt, iter.node, dtbo_dir)) applied_count++;
+		else if (on_error == DTBO_ERROR_FAILURE || on_error == DTBO_ERROR_REVERT) {
+			applied_count = -1;
+			break;
+		}
 	}
+	if (!is_empty && applied_count == 0 && on_error == DTBO_ERROR_NEEDONE)
+		applied_count = -1;
 	list_free_all_def(dtbo_dir);
-	return is_empty || success;
+	return applied_count;
 }
 
 /**
@@ -224,7 +263,8 @@ bool linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir) {
  *                    EFI_LOAD_ERROR if no overlays could be applied
  */
 EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
-	bool have_success = false;
+	int applied_count = 0, failed_count = 0, ret;
+	enum embloader_dtbo_on_error on_error = linux_get_dtbo_on_error();
 	if (!data || !info) return EFI_INVALID_PARAMETER;
 	if (!info->dtoverlay) return EFI_SUCCESS;
 	if (!data->fdt && !g_embloader.fdt)
@@ -233,9 +273,37 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 		log_warning("no device tree loaded, skip apply dtbo");
 		return EFI_SUCCESS;
 	}
+	int fdt_size = 0;
+	void *fdt_backup = NULL;
 	void *xfdt = data->fdt ?: g_embloader.fdt;
+	if (on_error == DTBO_ERROR_REVERT && xfdt) {
+		fdt_size = fdt_totalsize(xfdt);
+		if (fdt_size < 0 || fdt_size > SIZE_2MB) {
+			log_error("bad current fdt");
+			return EFI_DEVICE_ERROR;
+		}
+		if (!(fdt_backup = malloc(fdt_size))) {
+			log_error("failed to allocate memory for fdt backup");
+			return EFI_OUT_OF_RESOURCES;
+		}
+		memcpy(fdt_backup, xfdt, fdt_size);
+	}
 	list *dtbo_dir = embloader_dt_get_dtbo_dir();
-	if (dtbo_dir && linux_load_dtbos(info->root, xfdt, dtbo_dir)) have_success = true;
+	ret = linux_load_dtbos(info->root, xfdt, NULL, on_error);
+	if (ret < 0){
+		if (on_error == DTBO_ERROR_FAILURE) {
+			list_free_all_def(dtbo_dir);
+			return EFI_LOAD_ERROR;
+		}
+		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
+			list_free_all_def(dtbo_dir);
+			log_error("failed to apply dtbos, reverting to original device tree");
+			memcpy(xfdt, fdt_backup, fdt_size);
+			free(fdt_backup);
+			return EFI_SUCCESS;
+		}
+	}
+	if (ret > 0) applied_count += ret;
 	list *p;
 	if ((p = list_first(info->dtoverlay))) do {
 		LIST_DATA_DECLARE(dtbo, p, linux_overlay*);
@@ -244,9 +312,34 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 		if (do_load_dtbo_dirs(
 			xfdt, info->root, dtbo->path,
 			dtbo->params, dtbo_dir
-		)) have_success = true;
+		)) {
+			applied_count++;
+			continue;
+		}
+		failed_count++;
+		if (on_error == DTBO_ERROR_FAILURE) {
+			log_error("dtbo %s failed, aborting boot", dtbo->path);
+			list_free_all_def(dtbo_dir);
+			return EFI_LOAD_ERROR;
+		}
+		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
+			log_error("dtbo %s failed, reverting to original device tree", dtbo->path);
+			memcpy(xfdt, fdt_backup, fdt_size);
+			applied_count = 0;
+			failed_count = 0;
+			break;
+		}
+		log_warning("dtbo %s failed, continuing", dtbo->path);
 	} while ((p = p->next));
 	list_free_all_def(dtbo_dir);
-	if (!have_success) log_warning("no any device tree overlays applied");
-	return have_success ? EFI_SUCCESS : EFI_LOAD_ERROR;
+	if (fdt_backup) free(fdt_backup);
+	if (on_error == DTBO_ERROR_NEEDONE && applied_count == 0 && failed_count > 0) {
+		log_error("no device tree overlays applied, aborting boot");
+		return EFI_LOAD_ERROR;
+	}
+	if (applied_count > 0)
+		log_info("applied %d device tree overlay(s)", applied_count);
+	else
+		log_warning("no device tree overlays applied");
+	return EFI_SUCCESS;
 }

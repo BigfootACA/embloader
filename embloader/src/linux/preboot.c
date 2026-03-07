@@ -177,6 +177,7 @@ EFI_STATUS embloader_fetch_fdt() {
  * @return EFI_STATUS Returns EFI_SUCCESS on success, or appropriate error code on failure
  */
 EFI_STATUS embloader_prepare_boot() {
+	int ret;
 	if (!linux_load_default_dtb())
 		log_warning("load device tree failed");
 	if (!g_embloader.fdt) embloader_fetch_fdt();
@@ -184,7 +185,34 @@ EFI_STATUS embloader_prepare_boot() {
 		log_warning("no device tree loaded");
 		return EFI_LOAD_ERROR;
 	}
-	if (!linux_load_dtbos(g_embloader.dir.root, g_embloader.fdt, NULL))
-		log_warning("no any device tree overlays applied");
+	int fdt_size = 0;
+	void *fdt_backup = NULL;
+	enum embloader_dtbo_on_error on_error = linux_get_dtbo_on_error();
+	if (on_error == DTBO_ERROR_REVERT) {
+		fdt_size = fdt_totalsize(g_embloader.fdt);
+		if (fdt_size <= 0 || fdt_size > SIZE_2MB) {
+			log_error("bad current fdt");
+			return EFI_DEVICE_ERROR;
+		}
+		if (!(fdt_backup = malloc(fdt_size))) {
+			log_error("failed to allocate memory for fdt backup");
+			return EFI_OUT_OF_RESOURCES;
+		}
+		memcpy(fdt_backup, g_embloader.fdt, fdt_size);
+	}
+	ret = linux_load_dtbos(g_embloader.dir.root, g_embloader.fdt, NULL, on_error);
+	if (ret < 0) {
+		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
+			log_error("failed to apply dtbos, reverting to original device tree");
+			memcpy(g_embloader.fdt, fdt_backup, fdt_size);
+		} else {
+			log_error("load dtbos from default dir failed");
+			return EFI_LOAD_ERROR;
+		}
+	} else if (ret == 0)
+		log_info("no device tree overlays applied");
+	else
+		log_info("applied %d device tree overlay(s)", ret);
+	if (fdt_backup) free(fdt_backup);
 	return linux_install_fdt(g_embloader.fdt);
 }
