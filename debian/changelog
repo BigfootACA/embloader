@@ -1,3 +1,16 @@
+embloader (0.5) unstable; urgency=medium
+
+  3610cf0 embloader: linux: add dtbo on error actions
+  a262058 embloader: sdboot: menu.c: default to load from current device
+  2e7b105 embloader: log: introduce log subsystem
+  8b86d25 embloader: lib: file-utils.c: add efi_file_get_info_by efi_file_get_info efi_get_fs_info efi_file_set_size
+  3ac751d embloader: loader: fix cmdline editing when use embloader config
+  62800df embloader: encode: add encode_lookup
+  c5516a7 embloader: ext: newlib: add missing write call
+  fe8b06e embloader: ext: newlib: add missing c99 formats supports
+
+ -- BigfootACA <bigfoot@radxa.com> Mon, 11 May 2026 23:55:00 +0800
+
 embloader (0.4) unstable; urgency=medium
 
   1d80688 embloader: sdboot: types.c: allow number 0/1 for boolean
