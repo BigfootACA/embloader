@@ -6,6 +6,8 @@
 #include <Library/PrintLib.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Protocol/ComponentName.h>
+#include <Protocol/DevicePath.h>
 #include <Protocol/SimpleTextIn.h>
 #include <Protocol/SimpleTextOut.h>
 #include <stdio.h>
@@ -752,25 +754,60 @@ static EFI_STATUS read_once(struct tui_context *ctx) {
 	return EFI_SUCCESS;
 }
 
-static bool filter_supports() {
+static bool is_bad_simple_text_out() {
+	EFI_STATUS status;
+	EFI_HANDLE *handles = NULL;
+	UINTN count = 0;
+	bool bad = false;
+	EFI_GUID target_guid = {
+		0x857A8741, 0x0EEC, 0x43BD,
+		{ 0x94, 0x82, 0x27, 0xD1, 0x4E, 0xD4, 0x7D, 0x72 }
+	};
+	status = gBS->LocateHandleBuffer(
+		ByProtocol, &gEfiSimpleTextOutProtocolGuid,
+		NULL, &count, &handles
+	);
+	if (EFI_ERROR(status) || !handles) return false;
+	for (UINTN i = 0; i < count; i++) {
+		EFI_DEVICE_PATH_PROTOCOL *dp = NULL;
+		status = gBS->HandleProtocol(
+			handles[i], &gEfiDevicePathProtocolGuid, (void**) &dp
+		);
+		if (EFI_ERROR(status) || !dp) continue;
+		do {
+			UINT16 len = *(UINT16*) dp->Length;
+			if (len < sizeof(EFI_DEVICE_PATH_PROTOCOL)) break;
+			if (
+				dp->Type == HARDWARE_DEVICE_PATH &&
+				dp->SubType == HW_VENDOR_DP &&
+				len >= sizeof(VENDOR_DEVICE_PATH) &&
+				CompareGuid(&((VENDOR_DEVICE_PATH*)dp)->Guid, &target_guid)
+			) {
+				void *ptr = NULL;
+				status = gBS->HandleProtocol(
+					handles[i], &gEfiComponentNameProtocolGuid, &ptr
+				);
+				bad = EFI_ERROR(status) || !ptr;
+				goto out;
+			}
+			if (dp->Type == END_DEVICE_PATH_TYPE) break;
+			dp = (EFI_DEVICE_PATH_PROTOCOL*)((UINT8*)dp + len);
+		} while (true);
+	}
+out:
+	gBS->FreePool(handles);
+	return bad;
+}
+
+static bool tui_filter_supports() {
 	bool supports = true;
 	if (confignode_path_get_bool(
 		g_embloader.config,
 		"menu.no-blacklist",
 		false, NULL
 	)) return true;
-	char *bios_vendor = confignode_path_get_string(
-		g_embloader.sysinfo,
-		"smbios.bios0.vendor",
-		NULL, NULL
-	);
-	if (bios_vendor) {
-		if (strstr(bios_vendor, "Qualcomm")) {
-			log_warning("disabled for Qualcomm UEFI");
-			supports = false;
-		}
-		free(bios_vendor);
-	}
+	if (is_bad_simple_text_out())
+		supports = false;
 	return supports;
 }
 
@@ -792,7 +829,7 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected, uint64_t *flags
 	EFI_STATUS status;
 	if (flags) *flags = 0;
 	if (!g_embloader.menu || !selected) return EFI_INVALID_PARAMETER;
-	if (!filter_supports()) {
+	if (!tui_filter_supports()) {
 		log_warning("this platform have bad console, skip TUI menu");
 		return EFI_UNSUPPORTED;
 	}
