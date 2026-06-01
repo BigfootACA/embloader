@@ -1,0 +1,13 @@
+diff --git a/BaseTools/Source/C/EfiRom/EfiRom.c b/BaseTools/Source/C/EfiRom/EfiRom.c
+index fa7bf0e62e..2c5f112b87 100644
+--- a/BaseTools/Source/C/EfiRom/EfiRom.c
++++ b/BaseTools/Source/C/EfiRom/EfiRom.c
+@@ -75,7 +75,7 @@ Returns:
+   //
+   if (mOptions.DumpOption == 1) {
+     if (mOptions.FileList != NULL) {
+-      if ((Ptr0 = strstr ((CONST CHAR8 *) mOptions.FileList->FileName, DEFAULT_OUTPUT_EXTENSION)) != NULL) {
++      if ((Ptr0 = (CHAR8 *) strstr ((CONST CHAR8 *) mOptions.FileList->FileName, DEFAULT_OUTPUT_EXTENSION)) != NULL) {
+         DumpImage (mOptions.FileList);
+         goto BailOut;
+       } else {
