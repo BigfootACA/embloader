@@ -25,15 +25,15 @@ case "$1" in
                 ;;
         esac
 
-        SDBOOT_PATH="/usr/lib/systemd/boot/efi/$SDBOOT_EFI"
+        for SDBOOT_PATH in "/usr/lib/systemd/boot/efi/$SDBOOT_EFI" "/usr/lib/systemd/boot/efi/$SDBOOT_EFI.signed"; do
+            if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
+                rm -f "$SDBOOT_PATH"
+            fi
 
-        if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
-            rm -f "$SDBOOT_PATH"
-        fi
-
-        if dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
-            dpkg-divert --package "$PACKAGE" --rename --remove "$SDBOOT_PATH"
-        fi
+            if dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
+                dpkg-divert --package "$PACKAGE" --rename --remove "$SDBOOT_PATH"
+            fi
+        done
         ;;
 esac
 

@@ -25,16 +25,16 @@ case "$1" in
                 ;;
         esac
 
-        SDBOOT_PATH="/usr/lib/systemd/boot/efi/$SDBOOT_EFI"
-
-        if ! dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
-            if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
-                dpkg-divert --package "$PACKAGE" --divert "${SDBOOT_PATH}.distrib" \
-                    --rename "$SDBOOT_PATH"
+        for SDBOOT_PATH in "/usr/lib/systemd/boot/efi/$SDBOOT_EFI" "/usr/lib/systemd/boot/efi/$SDBOOT_EFI.signed"; do
+            if ! dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
+                if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
+                    dpkg-divert --package "$PACKAGE" --divert "${SDBOOT_PATH}.distrib" \
+                        --rename "$SDBOOT_PATH"
+                fi
             fi
-        fi
 
-        cp /usr/share/embloader/embloader.efi "$SDBOOT_PATH"
+            cp /usr/share/embloader/embloader.efi "$SDBOOT_PATH"
+        done
         ;;
 esac
 
