@@ -12,7 +12,7 @@ static void show_ask_editor(embloader_loader *item, uint64_t *flags) {
 	char edit_input[8], *buffer;
 	if (!item->editor) return;
 	while (true) {
-		printf("Edit bootargs? (y/n): ");
+		printf("Edit bootargs? (y/N): ");
 		fflush(stdout);
 		memset(edit_input, 0, sizeof(edit_input));
 		status = efi_readline(
@@ -21,6 +21,7 @@ static void show_ask_editor(embloader_loader *item, uint64_t *flags) {
 			g_embloader.menu->timeout
 		);
 		if (EFI_ERROR(status)) return;
+		if (strlen(edit_input) == 0) return;
 		if (string_is_true(edit_input)) break;
 		if (string_is_false(edit_input)) return;
 		printf("Invalid choice '%s'\n", edit_input);
