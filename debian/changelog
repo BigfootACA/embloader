@@ -1,3 +1,12 @@
+embloader (0.6) unstable; urgency=medium
+
+  c6fb37f embloader: menu: explicitly set default behavior of edit bootargs to N
+  abb4c04 debian: divert signed bootloader
+  1cb6834 embloader: menu: menus: tui_menu.c: improve bad qualcomm console detect
+  9deb82d embloader: fix edk2 build for discarded-qualifiers
+
+ -- BigfootACA <bigfoot@radxa.com> Tue, 23 Jun 2026 20:50:00 +0800
+
 embloader (0.5) unstable; urgency=medium
 
   3610cf0 embloader: linux: add dtbo on error actions
