@@ -78,6 +78,7 @@ static void write_utf8_at(struct tui_context *ctx, UINTN col, UINTN row, const c
 	free(utf16);
 }
 
+static void printf_utf8_at(struct tui_context *ctx, UINTN col, UINTN row, const char *str, ...) __attribute__((format(printf, 4, 5)));
 static void printf_utf8_at(struct tui_context *ctx, UINTN col, UINTN row, const char *str, ...) {
 	char *buffer = NULL;
 	va_list args;
@@ -290,7 +291,7 @@ static void show_editor_dialog(struct tui_context *ctx, embloader_loader *item) 
 	}
 	memset(buffer, 0, 16384);
 	if (item->bootargs && item->bootargs[0])
-		strncpy(buffer, item->bootargs, 16383);
+		snprintf(buffer, 16384, "%s", item->bootargs);
 	cursor_pos = strlen(buffer);
 	old_len = cursor_pos;
 	redraw_editor_dialog(
