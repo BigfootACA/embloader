@@ -172,6 +172,7 @@ static void update_fields(struct gui_menu_ctx *ctx) {
 	);
 }
 
+static void printf_serial(struct gui_menu_ctx *ctx, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 static void printf_serial(struct gui_menu_ctx *ctx, const char *fmt, ...) {
 	char *buf = NULL;
 	va_list args;
