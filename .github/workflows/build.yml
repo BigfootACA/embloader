@@ -7,7 +7,7 @@ on:
 
 jobs:
   build-deb:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
@@ -15,13 +15,16 @@ jobs:
           - arch: amd64
             efi_arch: X64
             distro: "ubuntu24.04"
+            runner: ubuntu-latest
           - arch: arm64
             run_arch: aarch64
             efi_arch: AARCH64
             distro: "ubuntu24.04"
+            runner: ubuntu-24.04-arm
           # - arch: riscv64
           #   run_arch: riscv64
           #   efi_arch: RISCV64
+          #   runner: ubuntu-latest
           #   distro: "ubuntu24.04"
 
     steps:
@@ -33,11 +36,11 @@ jobs:
 
     - name: Set up QEMU
       uses: docker/setup-qemu-action@v3
-      if: matrix.arch != 'amd64'
+      if: matrix.arch != 'amd64' && matrix.arch != 'arm64'
 
     - name: Build inside ${{ matrix.arch }} container (QEMU)
       uses: uraimo/run-on-arch-action@v3
-      if: matrix.arch != 'amd64'
+      if: matrix.arch != 'amd64' && matrix.arch != 'arm64'
       with:
         arch: ${{ matrix.run_arch }}
         distro: ${{ matrix.distro }}
@@ -63,8 +66,8 @@ jobs:
           cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.efi .
           cp -v build/Build/embloader/RELEASE_GCC5/${{ matrix.efi_arch }}/embloader.debug .
 
-    - name: Build on amd64
-      if: matrix.arch == 'amd64'
+    - name: Build native
+      if: matrix.arch == 'amd64' || matrix.arch == 'arm64'
       run: |
         sudo apt-get update
         sudo apt-get install -y \
