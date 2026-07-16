@@ -1,3 +1,10 @@
+embloader (0.7) unstable; urgency=medium
+
+  7ac11d4 CI: use native arm64 runner for arm64 build
+  541bdb4 embloader: linux: boot.c: allow embloader_prepare_boot fail to boot with ACPI
+
+ -- BigfootACA <bigfoot@radxa.com> Thu, 16 Jul 2026 21:20:00 +0800
+
 embloader (0.6) unstable; urgency=medium
 
   c6fb37f embloader: menu: explicitly set default behavior of edit bootargs to N
