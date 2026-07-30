@@ -25,6 +25,10 @@
   embloader_lib
   embloader_configfile
 
+[LibraryClasses.AARCH64]
+  ArmLib
+  CacheMaintenanceLib
+
 [Sources]
   boot.c
   bootargs.c
@@ -33,7 +37,11 @@
   dtbo_params.c
   dtbo.c
   efi.c
+  fdt.c
   initramfs.c
   kernel.c
   load.c
   preboot.c
+
+[Sources.AARCH64]
+  aarch64.c

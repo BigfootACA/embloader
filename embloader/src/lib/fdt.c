@@ -13,7 +13,7 @@ int fdt_getprop_u8(fdt fdt, int off, const char* name, int id, uint8_t* val) {
 	prop = fdt_getprop(fdt, off, name, &length);
 	if (length < 0) return length;
 	if (length % sizeof(uint8_t) != 0) return -FDT_ERR_BADVALUE;
-	if (id > length / (int) sizeof(uint8_t)) return -FDT_ERR_BADOFFSET;
+	if (id < 0 || id >= length / (int) sizeof(uint8_t)) return -FDT_ERR_BADOFFSET;
 	if (val) *val = prop[id];
 	return 0;
 }
@@ -26,7 +26,7 @@ int fdt_getprop_u16(fdt fdt, int off, const char* name, int id, uint16_t* val) {
 	prop = fdt_getprop(fdt, off, name, &length);
 	if (length < 0) return length;
 	if (length % sizeof(uint16_t) != 0) return -FDT_ERR_BADVALUE;
-	if (id > length / (int) sizeof(uint16_t)) return -FDT_ERR_BADOFFSET;
+	if (id < 0 || id >= length / (int) sizeof(uint16_t)) return -FDT_ERR_BADOFFSET;
 	if (val) *val = fdt16_to_cpu(prop[id]);
 	return 0;
 }
@@ -39,7 +39,7 @@ int fdt_getprop_u32(fdt fdt, int off, const char* name, int id, uint32_t* val) {
 	prop = fdt_getprop(fdt, off, name, &length);
 	if (length < 0) return length;
 	if (length % sizeof(uint32_t) != 0) return -FDT_ERR_BADVALUE;
-	if (id > length / (int) sizeof(uint32_t)) return -FDT_ERR_BADOFFSET;
+	if (id < 0 || id >= length / (int) sizeof(uint32_t)) return -FDT_ERR_BADOFFSET;
 	if (val) *val = fdt32_to_cpu(prop[id]);
 	return 0;
 }
@@ -52,7 +52,7 @@ int fdt_getprop_u64(fdt fdt, int off, const char* name, int id, uint64_t* val) {
 	prop = fdt_getprop(fdt, off, name, &length);
 	if (length < 0) return length;
 	if (length % sizeof(uint64_t) != 0) return -FDT_ERR_BADVALUE;
-	if (id > length / (int) sizeof(uint64_t)) return -FDT_ERR_BADOFFSET;
+	if (id < 0 || id >= length / (int) sizeof(uint64_t)) return -FDT_ERR_BADOFFSET;
 	if (val) *val = fdt64_to_cpu(prop[id]);
 	return 0;
 }
@@ -62,6 +62,41 @@ int fdt_getprop_un(fdt fdt, int off, const char* name, int id, uintptr_t* val) {
 		return fdt_getprop_u32(fdt, off, name, id, (uint32_t*) val);
 	if (sizeof(uintptr_t) == sizeof(uint64_t))
 		return fdt_getprop_u64(fdt, off, name, id, (uint64_t*) val);
+	return -FDT_ERR_BADVALUE;
+}
+
+int fdt_getprop_uc(fdt fdt, int off, const char* name, int id, uint64_t* val, bool size) {
+	if (val) *val = 0;
+	int p = off == 0 ? 0 : fdt_parent_offset(fdt, off);
+	int32_t cells = size ? fdt_get_size_cells(fdt, p): fdt_get_address_cells(fdt, p);
+	if (cells == 1) {
+		uint32_t value;
+		int ret = fdt_getprop_u32(fdt, off, name, id, &value);
+		if (ret == 0 && val) *val = value;
+		return ret;
+	}
+	if (cells == 2)
+		return fdt_getprop_u64(fdt, off, name, id, (uint64_t*) val);
+	return -FDT_ERR_BADVALUE;
+}
+
+int fdt_setprop_uc(fdt fdt, int off, const char* name, uint64_t val, bool size) {
+	int p = off == 0 ? 0 : fdt_parent_offset(fdt, off);
+	int32_t cells = size ? fdt_get_size_cells(fdt, p): fdt_get_address_cells(fdt, p);
+	if (cells == 1 && val <= MAX_UINT32)
+		return fdt_setprop_u32(fdt, off, name, val);
+	if (cells == 2)
+		return fdt_setprop_u64(fdt, off, name, val);
+	return -FDT_ERR_BADVALUE;
+}
+
+int fdt_appendprop_uc(fdt fdt, int off, const char* name, uint64_t val, bool size) {
+	int p = off == 0 ? 0 : fdt_parent_offset(fdt, off);
+	int32_t cells = size ? fdt_get_size_cells(fdt, p): fdt_get_address_cells(fdt, p);
+	if (cells == 1 && val <= MAX_UINT32)
+		return fdt_appendprop_u32(fdt, off, name, val);
+	if (cells == 2)
+		return fdt_appendprop_u64(fdt, off, name, val);
 	return -FDT_ERR_BADVALUE;
 }
 

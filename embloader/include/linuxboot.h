@@ -30,6 +30,11 @@ struct linux_data {
 	char *bootargs;
 };
 
+struct linux_memory {
+	EFI_PHYSICAL_ADDRESS address;
+	UINT64 size;
+};
+
 enum embloader_dtbo_on_error {
 	DTBO_ERROR_UNKNOWN,
 	DTBO_ERROR_FAILURE,   //< If any DTBO fails to apply, fail the boot
@@ -58,7 +63,11 @@ extern EFI_STATUS linux_initramfs_register(const void *ptr, size_t size, EFI_HAN
 extern EFI_STATUS linux_initramfs_unregister(EFI_HANDLE hand);
 extern EFI_STATUS linux_boot_efi(void *img, size_t len, const char *cmdline);
 extern EFI_STATUS linux_boot_use_efi(linux_data *data);
+extern EFI_STATUS linux_boot_use_aarch64(linux_data *data);
 extern linux_data* linux_data_load(linux_bootinfo *info);
 extern void linux_data_clean(linux_data *data);
 extern EFI_STATUS linux_install_fdt(fdt fdt);
+extern int linux_fdt_fill_bootargs(fdt fdt, const char *bootargs);
+extern int linux_fdt_fill_initrd(fdt fdt, VOID *initrd_addr, size_t initrd_size);
+extern int linux_fdt_fill_memory(fdt fdt, struct linux_memory *memory, size_t cnt);
 #endif

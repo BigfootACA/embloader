@@ -46,6 +46,12 @@
   UefiBootServicesTableLib|MdePkg/Library/UefiBootServicesTableLib/UefiBootServicesTableLib.inf
   UefiRuntimeServicesTableLib|MdePkg/Library/UefiRuntimeServicesTableLib/UefiRuntimeServicesTableLib.inf
 
+[LibraryClasses.ARM, LibraryClasses.AARCH64]
+  ArmLib|ArmPkg/Library/ArmLib/ArmBaseLib.inf
+
+[LibraryClasses.AARCH64]
+  CacheMaintenanceLib|ArmPkg/Library/ArmCacheMaintenanceLib/ArmCacheMaintenanceLib.inf
+
 [Components]
   embloader/src/main/embloader.inf
 

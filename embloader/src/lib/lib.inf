@@ -23,6 +23,7 @@
   crc32.c
   dump.c
   efi-utils.c
+  fdt.c
   file-utils.c
   list.c
   missing.c
