@@ -3,6 +3,21 @@ set -e
 
 PACKAGE="sdboot-is-embloader"
 
+get_embloader_version() {
+    LOADER_INFO=$(LC_ALL=C grep -aom1 '#### LoaderInfo: [^#]* ####' "$1" 2>/dev/null) || return 1
+    case "$LOADER_INFO" in
+        "#### LoaderInfo: systemd 999."*" (embloader "*") ####")
+            LOADER_INFO=${LOADER_INFO#*" (embloader "}
+            LOADER_INFO=${LOADER_INFO%") ####"}
+            [ -n "$LOADER_INFO" ] || return 1
+            printf '%s\n' "$LOADER_INFO"
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
 case "$1" in
     configure)
         ARCH=$(dpkg --print-architecture)
@@ -35,6 +50,22 @@ case "$1" in
 
             cp /usr/share/embloader/embloader.efi "$SDBOOT_PATH"
         done
+
+        if command -v bootctl >/dev/null 2>&1; then
+            ESP_PATH=$(bootctl --print-esp-path 2>/dev/null) || ESP_PATH=
+            if [ -n "$ESP_PATH" ]; then
+                INSTALLED_VERSION=$(get_embloader_version \
+                    "$ESP_PATH/EFI/systemd/$SDBOOT_EFI") || INSTALLED_VERSION=
+                AVAILABLE_VERSION=$(get_embloader_version \
+                    /usr/share/embloader/embloader.efi) || AVAILABLE_VERSION=
+                if [ -n "$INSTALLED_VERSION" ] && [ -n "$AVAILABLE_VERSION" ] && \
+                        dpkg --compare-versions "$INSTALLED_VERSION" lt "$AVAILABLE_VERSION"; then
+                    if ! bootctl --esp-path="$ESP_PATH" install; then
+                        echo "Warning: failed to update embloader on the EFI System Partition" >&2
+                    fi
+                fi
+            fi
+        fi
         ;;
 esac
 
