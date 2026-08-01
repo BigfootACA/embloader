@@ -231,19 +231,25 @@ bool fdt_get_memory(fdt fdt, int index, uint64_t* base, uint64_t* size) {
 
 bool fdt_get_initrd(fdt fdt, void** initrd, size_t* size) {
 	int node, l;
-	size_t start, end;
+	int32_t cells;
+	uint64_t start = 0, end = 0;
 	const void* data = NULL;
+	if (initrd) *initrd = NULL;
+	if (size) *size = 0;
 	if (!fdt) return false;
 	node = fdt_path_offset(fdt, "/chosen");
 	if (node < 0) return false;
+	cells = fdt_get_address_cells(fdt, node);
+	if (cells != 1 && cells != 2) return false;
 	data = fdt_getprop(fdt, node, "linux,initrd-start", &l);
-	if (l != sizeof(void*)) return false;
-	start = *(size_t*) data;
+	if (l != cells * (int) sizeof(fdt32_t)) return false;
+	if (!fdt_apply_cells(cells, &start, data)) return false;
 	data = fdt_getprop(fdt, node, "linux,initrd-end", &l);
-	if (l != sizeof(void*)) return false;
-	end = *(size_t*) data;
-	if (start <= end) return false;
-	if (initrd) *initrd = (void*) start;
+	if (l != cells * (int) sizeof(fdt32_t)) return false;
+	if (!fdt_apply_cells(cells, &end, data)) return false;
+	if (end <= start || start > UINTPTR_MAX || end - start > SIZE_MAX)
+		return false;
+	if (initrd) *initrd = (void*) (uintptr_t) start;
 	if (size) *size = (size_t) (end - start);
 	return true;
 }

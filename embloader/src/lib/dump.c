@@ -34,8 +34,8 @@ static void dump_finish(mem_dump* dump) {
 	if (!dump || !dump->write) return;
 	if (!dump->buffered || !dump->buffer) return;
 	if (dump->buf_pos > 0) {
-		dump->buffer[dump->buf_pos + 1] = 0;
-		dump->write(dump, dump->buffer, dump->buf_pos + 1);
+		dump->buffer[dump->buf_pos] = 0;
+		dump->write(dump, dump->buffer, dump->buf_pos);
 		dump->buf_pos = 0;
 	}
 	free(dump->buffer);
@@ -45,16 +45,22 @@ static void dump_finish(mem_dump* dump) {
 
 static int dump_print(mem_dump* dump, const char* str) {
 	void* buf;
-	size_t len, size, i;
+	size_t len, needed, old_size, size, i;
 	if (!dump || !dump->write || !str) return -1;
 	if ((len = strlen(str)) <= 0) return 0;
 	if (!dump->buffered) return dump->write(dump, str, len);
-	if (len + dump->buf_pos >= dump->buf_size || !dump->buffer) {
-		size = dump->buf_size;
-		while (len + dump->buf_pos >= size) size += 4096;
+	if (len > SIZE_MAX - dump->buf_pos) return -1;
+	needed = len + dump->buf_pos;
+	if (needed >= dump->buf_size || !dump->buffer) {
+		old_size = dump->buf_size;
+		size = old_size;
+		while (needed >= size) {
+			if (size > SIZE_MAX - 4096) return -1;
+			size += 4096;
+		}
 		buf = dump->buffer ? realloc(dump->buffer, size) : malloc(size);
 		if (!buf) return -1;
-		memset(buf, 0, size);
+		memset((char*)buf + old_size, 0, size - old_size);
 		dump->buf_size = size;
 		dump->buffer = buf;
 	}
@@ -83,17 +89,20 @@ static int dump_printf(mem_dump* dump, const char* fmt, ...) {
 	char* str = buff;
 	if (!dump || !dump->print) return -1;
 	va_start(va, fmt);
-	r = vsnprintf(buff, sizeof(buff) - 1, fmt, va);
+	r = vsnprintf(buff, sizeof(buff), fmt, va);
+	va_end(va);
 	if (r >= 0 && (size_t) r >= sizeof(buff)) {
 		alloc = true, str = NULL;
+		va_start(va, fmt);
 		r = vasprintf(&str, fmt, va);
+		va_end(va);
 		if (r < 0 || !str) return -1;
 	}
-	va_end(va);
+	if (r < 0) return -1;
 	if (!str) return 0;
-	dump->print(dump, str);
+	r = dump->print(dump, str);
 	if (alloc) free(str);
-	return 0;
+	return r;
 }
 
 static int dump_stdio_write(mem_dump* dump, const char* str, size_t len) {
@@ -115,6 +124,7 @@ void mem_dump_with(void* addr, size_t len, mem_dump* dump) {
 	char* u = addr;
 	char buff[256];
 	size_t i, a, b, s = 0;
+	if (!addr || len == 0) return;
 	if (!dump) dump = &mem_dump_def;
 	if (!dump->write || dump->step <= 0 || len <= 0) return;
 	if (!dump->finish) dump->finish = dump_finish;
@@ -155,11 +165,11 @@ void mem_dump_with(void* addr, size_t len, mem_dump* dump) {
 				dump->putchar(dump, ' ');
 			}
 			if (dump->print_ascii) {
-				for (b = a - dump->step; b < a; b++)
-					dump->putchar(
-						dump,
-						isprint(u[b]) ? u[b] : '.'
-					);
+					for (b = a - dump->step; b < a; b++)
+						dump->putchar(
+							dump,
+							isprint((unsigned char)u[b]) ? u[b] : '.'
+						);
 				if (dump->table && a != 0) {
 					dump->putchar(dump, ' ');
 					dump->printf(dump, dump->table[1]);
@@ -183,7 +193,7 @@ void mem_dump_with(void* addr, size_t len, mem_dump* dump) {
 			}
 			s = a;
 		}
-		dump->printf(dump, "%02X ", (unsigned char) (u[a] % 0xFF));
+		dump->printf(dump, "%02X ", (unsigned char)u[a]);
 	}
 	if (s != len)
 		for (b = 0; b < s + dump->step - len; b++)
@@ -194,7 +204,10 @@ void mem_dump_with(void* addr, size_t len, mem_dump* dump) {
 	}
 	if (dump->print_ascii) {
 		for (b = s; b < len; b++)
-			dump->printf(dump, "%c", isprint(u[b]) ? u[b] : '.');
+			dump->printf(
+				dump, "%c",
+				isprint((unsigned char)u[b]) ? u[b] : '.'
+			);
 		for (b = 0; b < s + dump->step - len; b++)
 			dump->putchar(dump, ' ');
 		if (dump->table) {
@@ -218,4 +231,5 @@ void mem_dump_with(void* addr, size_t len, mem_dump* dump) {
 		dump->print(dump, dump->table[10]);
 		dump->putchar(dump, '\n');
 	}
+	dump->finish(dump);
 }

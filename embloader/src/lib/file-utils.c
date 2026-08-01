@@ -5,6 +5,7 @@
 #include <Library/PrintLib.h>
 #include <Library/UefiLib.h>
 #include <Guid/FileInfo.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include "file-utils.h"
@@ -26,12 +27,13 @@ EFI_STATUS efi_file_get_info_by(EFI_FILE_PROTOCOL* file, EFI_GUID *guid, VOID** 
 	EFI_STATUS status;
 	VOID* vinfo = NULL;
 	UINTN vinfo_size = 0;
-	if (!file) return EFI_INVALID_PARAMETER;
+	if (!file || !guid) return EFI_INVALID_PARAMETER;
 	if (info) *info = NULL;
 	if (info_size) *info_size = 0;
 	status = file->GetInfo(file, guid, &vinfo_size, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL)
 		return EFI_ERROR(status) ? status : EFI_INVALID_PARAMETER;
+	if (vinfo_size == 0) return EFI_BAD_BUFFER_SIZE;
 	vinfo = AllocatePool(vinfo_size);
 	if (!vinfo) return EFI_OUT_OF_RESOURCES;
 	status = file->GetInfo(file, guid, &vinfo_size, vinfo);
@@ -64,7 +66,8 @@ EFI_STATUS efi_get_fs_info(EFI_SIMPLE_FILE_SYSTEM_PROTOCOL* fs, EFI_FILE_SYSTEM_
 	if (!fs || !info) return EFI_INVALID_PARAMETER;
 	*info = NULL;
 	st = fs->OpenVolume(fs, &root);
-	if (EFI_ERROR(st) || !root) return EFI_INVALID_PARAMETER;
+	if (EFI_ERROR(st)) return st;
+	if (!root) return EFI_NOT_FOUND;
 	st = efi_file_get_info_by(root, &gEfiFileSystemInfoGuid, (VOID**)info, NULL);
 	if (root) root->Close(root);
 	return st;
@@ -86,6 +89,10 @@ EFI_STATUS efi_file_get_size(EFI_FILE_PROTOCOL* file, size_t* size) {
 	*size = 0;
 	status = efi_file_get_info(file, &file_info);
 	if (EFI_ERROR(status)) return status;
+	if (file_info->FileSize > SIZE_MAX) {
+		FreePool(file_info);
+		return EFI_BAD_BUFFER_SIZE;
+	}
 	*size = (size_t) file_info->FileSize;
 	FreePool(file_info);
 	return EFI_SUCCESS;
@@ -171,11 +178,13 @@ EFI_STATUS efi_file_read_all(EFI_FILE_PROTOCOL* file, void** out, size_t *flen) 
 	if (EFI_ERROR(status)) return status;
 	if (file_size == 0) {
 		buffer = malloc(1);
-		if (buffer) buffer[0] = 0;
+		if (!buffer) return EFI_OUT_OF_RESOURCES;
+		buffer[0] = 0;
 		*out = buffer;
 		if (flen) *flen = 0;
 		return EFI_SUCCESS;
 	}
+	if (file_size == SIZE_MAX) return EFI_BAD_BUFFER_SIZE;
 	buffer = malloc(file_size + 1);
 	if (!buffer) return EFI_OUT_OF_RESOURCES;
 	status = efi_file_chunked_read(file, 0, buffer, file_size);
@@ -328,6 +337,7 @@ EFI_STATUS efi_open(
 ) {
 	if (!root || !file || !path)
 		return EFI_INVALID_PARAMETER;
+	*file = NULL;
 	EFI_STATUS status;
 	CHAR16* wpath = encode_utf8_to_utf16(path);
 	if (!wpath) return EFI_OUT_OF_RESOURCES;

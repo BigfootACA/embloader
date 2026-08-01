@@ -187,13 +187,22 @@ EFI_STATUS efivar_get_raw(
 	CHAR16 *wname = NULL;
 	EFI_STATUS status = EFI_SUCCESS;
 	if (!vendor || !name) return EFI_INVALID_PARAMETER;
+	if (ret_data) *ret_data = NULL;
+	if (ret_size) *ret_size = 0;
 	if (!(wname = encode_utf8_to_utf16(name))) return EFI_OUT_OF_RESOURCES;
 	status = gRT->GetVariable(wname, (EFI_GUID *) vendor, NULL, &size, NULL);
 	if (status != EFI_BUFFER_TOO_SMALL) {
 		if (!EFI_ERROR(status)) status = EFI_BAD_BUFFER_SIZE;
 		goto done;
 	}
-	if (!(buf = malloc(size + 2))) return EFI_OUT_OF_RESOURCES;
+	if (size > SIZE_MAX - 2) {
+		status = EFI_OUT_OF_RESOURCES;
+		goto done;
+	}
+	if (!(buf = malloc(size + 2))) {
+		status = EFI_OUT_OF_RESOURCES;
+		goto done;
+	}
 	memset(buf, 0, size + 2);
 	status = gRT->GetVariable(wname, (EFI_GUID *) vendor, NULL, &size, buf);
 	if (EFI_ERROR(status)) goto done;
@@ -357,6 +366,7 @@ EFI_STATUS efivar_get_uint32_le(
 		(uint32_t) buf[1] << 8U |
 		(uint32_t) buf[2] << 16U |
 		(uint32_t) buf[3] << 24U;
+	free(buf);
 	return EFI_SUCCESS;
 }
 
@@ -384,6 +394,7 @@ EFI_STATUS efivar_get_uint64_le(
 		(uint64_t) buf[5] << 40U |
 		(uint64_t) buf[6] << 48U |
 		(uint64_t) buf[7] << 56U;
+	free(buf);
 	return EFI_SUCCESS;
 }
 

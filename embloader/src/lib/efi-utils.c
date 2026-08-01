@@ -191,21 +191,35 @@ EFI_DEVICE_PATH_PROTOCOL* efi_device_path_append_filepath(
 ) {
 	EFI_DEVICE_PATH_PROTOCOL *ret;
 	FILEPATH_DEVICE_PATH *fdp;
+	CHAR16 *wpath;
 	if (!dp || !path) return NULL;
-	size_t plen = strlen(path);
-	size_t len = sizeof(FILEPATH_DEVICE_PATH) +
-		((plen + 3) * sizeof(CHAR16));
-	if (!(fdp = malloc(len))) return NULL;
+	if (!(wpath = encode_utf8_to_utf16(path))) return NULL;
+	size_t plen = StrLen(wpath);
+	bool add_root = path[0] != '/' && path[0] != '\\';
+	if (plen > (SIZE_MAX - SIZE_OF_FILEPATH_DEVICE_PATH) / sizeof(CHAR16) - 2) {
+		free(wpath);
+		return NULL;
+	}
+	size_t len = SIZE_OF_FILEPATH_DEVICE_PATH +
+		(plen + (add_root ? 1 : 0) + 1) * sizeof(CHAR16);
+	if (len > MAX_UINT16) {
+		free(wpath);
+		return NULL;
+	}
+	if (!(fdp = malloc(len))) {
+		free(wpath);
+		return NULL;
+	}
 	memset(fdp, 0, len);
 	fdp->Header.Type = MEDIA_DEVICE_PATH;
 	fdp->Header.SubType = MEDIA_FILEPATH_DP;
 	fdp->Header.Length[0] = (UINT8)(len & 0xFF);
 	fdp->Header.Length[1] = (UINT8)((len >> 8) & 0xFF);
 	CHAR16 *buf = fdp->PathName;
-	if (path[0] != '/' && path[0] != '\\') *buf++ = L'/';
-	AsciiStrToUnicodeStrS(path, buf, len + 1);
-	for (size_t i = 0; i < plen; i++)
-		if (buf[i] == L'/') buf[i] = L'\\';
+	if (add_root) *buf++ = L'\\';
+	memcpy(buf, wpath, (plen + 1) * sizeof(CHAR16));
+	free(wpath);
+	for (size_t i = 0; i < plen; i++) if (buf[i] == L'/') buf[i] = L'\\';
 	ret = AppendDevicePathNode(dp, (EFI_DEVICE_PATH_PROTOCOL*)fdp);
 	free(fdp);
 	if (!ret) log_warning("append filepath %s failed", path);
