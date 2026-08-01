@@ -152,6 +152,7 @@ function run_qemu_aarch64_debug_real(){
 
 function run_qemu_aarch64_debug(){
 	exec script \
+		--return \
 		--log-out qemu.log \
 		--flush \
 		--quiet \
