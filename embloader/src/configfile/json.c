@@ -1,3 +1,4 @@
+#include <ctype.h>
 #include <errno.h>
 #include <string.h>
 #include "internal.h"
@@ -147,8 +148,22 @@ json_object* confignode_to_json(confignode* node) {
  *
  */
 confignode* configfile_json_load_string(const char* buff) {
-	json_object* obj = json_tokener_parse(buff);
-	if (!obj) return NULL;
+	if (!buff) return NULL;
+	json_tokener* tokener = json_tokener_new();
+	if (!tokener) return NULL;
+	json_tokener_set_flags(
+		tokener, JSON_TOKENER_STRICT | JSON_TOKENER_VALIDATE_UTF8
+	);
+	json_object* obj = json_tokener_parse_ex(tokener, buff, -1);
+	size_t len = strlen(buff), end = json_tokener_get_parse_end(tokener);
+	while (end < len && isspace((unsigned char)buff[end])) end++;
+	bool valid = json_tokener_get_error(tokener) == json_tokener_success &&
+		end == len && obj;
+	json_tokener_free(tokener);
+	if (!valid) {
+		if (obj) json_object_put(obj);
+		return NULL;
+	}
 	confignode* node = confignode_from_json(obj);
 	json_object_put(obj);
 	return node;

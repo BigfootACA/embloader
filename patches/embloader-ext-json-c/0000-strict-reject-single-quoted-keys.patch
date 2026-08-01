@@ -1,0 +1,10 @@
+diff --git a/json_tokener.c b/json_tokener.c
+index 8412eae..1dced32 100644
+--- a/json_tokener.c
++++ b/json_tokener.c
+@@ -1212 +1212,4 @@ struct json_object *json_tokener_parse_ex(struct json_tokener *tok, const char *
+-			else if (c == '"' || c == '\'')
++			else if (
++				c == '"' ||
++				(c == '\'' && !(tok->flags & JSON_TOKENER_STRICT))
++			)
