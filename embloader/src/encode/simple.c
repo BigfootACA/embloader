@@ -1,5 +1,6 @@
 #include <Library/BaseLib.h>
 #include "encode.h"
+#include <stdint.h>
 #include <string.h>
 #include <stdlib.h>
 
@@ -14,13 +15,15 @@
  */
 CHAR16* encode_utf8_to_utf16(const char *utf8) {
 	if (!utf8) return NULL;
+	size_t length = strlen(utf8);
+	if (length > SIZE_MAX / sizeof(CHAR16) - 1) return NULL;
 	encode_convert_ctx ctx;
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.in.src = ENC_UTF8;
 	ctx.in.dst = ENC_UTF16;
 	ctx.in.src_ptr = utf8;
-	ctx.in.src_size = strlen(utf8);
-	ctx.in.dst_size = ctx.in.src_size * 2 + 2;
+	ctx.in.src_size = length;
+	ctx.in.dst_size = (length + 1) * sizeof(CHAR16);
 	ctx.in.allow_invalid = true;
 	ctx.in.dst_ptr = malloc(ctx.in.dst_size);
 	if (!ctx.in.dst_ptr) return NULL;
@@ -43,14 +46,15 @@ CHAR16* encode_utf8_to_utf16(const char *utf8) {
  */
 char* encode_utf16_to_utf8(const CHAR16 *utf16) {
 	if (!utf16) return NULL;
+	size_t length = StrLen(utf16);
+	if (length > (SIZE_MAX - 1) / 3) return NULL;
 	encode_convert_ctx ctx;
 	memset(&ctx, 0, sizeof(ctx));
 	ctx.in.src = ENC_UTF16;
 	ctx.in.dst = ENC_UTF8;
 	ctx.in.src_ptr = utf16;
-	ctx.in.src_size = 0;
-	ctx.in.src_size = StrSize(utf16);
-	ctx.in.dst_size = ctx.in.src_size;
+	ctx.in.src_size = length * sizeof(CHAR16);
+	ctx.in.dst_size = length * 3 + 1;
 	ctx.in.allow_invalid = true;
 	ctx.in.dst_ptr = malloc(ctx.in.dst_size);
 	if (!ctx.in.dst_ptr) return NULL;

@@ -15,20 +15,30 @@
  *         EFI_OUT_OF_RESOURCES if buffer space insufficient
  */
 EFI_STATUS encode_proc_transfer(encode_convert_ctx* ctx, size_t* s, size_t* d) {
+	if (
+		!ctx || !s || !d || !ctx->in.src_ptr || !ctx->in.dst_ptr ||
+		!ctx->in.transfers || *s > ctx->in.src_size || *d > ctx->in.dst_size
+	) return EFI_INVALID_PARAMETER;
 	const convert_transfer* tr;
 	uint8_t* dst = (uint8_t*) ctx->in.dst_ptr;
 	const uint8_t* src = (const uint8_t*) ctx->in.src_ptr;
-	for (int t = 0; (tr = ctx->in.transfers[t]); t++) if (
-		tr->match_size > 0 &&
-		tr->replace_size > 0 &&
-		*s + tr->match_size <= ctx->in.src_size &&
-		memcmp(src + *s, tr->match, tr->match_size) == 0
-	) {
-		if (!tr->replace || tr->replace_size == 0)
+	for (size_t t = 0; (tr = ctx->in.transfers[t]); t++) {
+		if (!tr->match || tr->match_size == 0)
+			return EFI_INVALID_PARAMETER;
+		if (tr->replace_size > 0 && !tr->replace)
+			return EFI_INVALID_PARAMETER;
+		if (
+			(ctx->in.src == ENC_UTF16 &&
+			 tr->match_size % sizeof(CHAR16) != 0) ||
+			(ctx->in.dst == ENC_UTF16 &&
+			 tr->replace_size % sizeof(CHAR16) != 0)
+		) return EFI_INVALID_PARAMETER;
+		if (tr->match_size > ctx->in.src_size - *s) continue;
+		if (memcmp(src + *s, tr->match, tr->match_size) != 0) continue;
+		if (tr->replace_size > ctx->in.dst_size - *d)
 			return EFI_OUT_OF_RESOURCES;
-		if (*d + tr->replace_size > ctx->in.dst_size)
-			return EFI_OUT_OF_RESOURCES;
-		memcpy(dst + *d, tr->replace, tr->replace_size);
+		if (tr->replace_size > 0)
+			memcpy(dst + *d, tr->replace, tr->replace_size);
 		*s += tr->match_size, *d += tr->replace_size;
 		return EFI_SUCCESS;
 	}
@@ -49,28 +59,27 @@ EFI_STATUS encode_copy_convert(encode_convert_ctx* ctx) {
 	if (ctx->in.transfers) {
 		uint8_t* dst = (uint8_t*) ctx->in.dst_ptr;
 		const uint8_t* src = (const uint8_t*) ctx->in.src_ptr;
-		while (
-			i < ctx->in.src_size &&
-			j < ctx->in.dst_size &&
-			!EFI_ERROR(ret)
-		) {
+		while (i < ctx->in.src_size && ret == EFI_SUCCESS) {
 			st = encode_proc_transfer(ctx, &i, &j);
-			if (st == EFI_OUT_OF_RESOURCES) break;
-			else if (st == EFI_NOT_FOUND)
-				dst[j++] = src[i++];
+			if (st == EFI_OUT_OF_RESOURCES) ret = st;
+			else if (st == EFI_NOT_FOUND) {
+				if (j >= ctx->in.dst_size) ret = EFI_OUT_OF_RESOURCES;
+				else dst[j++] = src[i++];
+			}
 			else if (st == EFI_SUCCESS)
 				continue;
 			else ret = st;
 		}
 	} else {
 		size_t size = MIN(ctx->in.src_size, ctx->in.dst_size);
-		memcpy(ctx->in.dst_ptr, ctx->in.src_ptr, size);
+		memmove(ctx->in.dst_ptr, ctx->in.src_ptr, size);
 		i = size, j = size;
+		if (size < ctx->in.src_size) ret = EFI_OUT_OF_RESOURCES;
 	}
 	ctx->out.src_used = i;
 	ctx->out.dst_wrote = j;
-	ctx->out.src_end = (void*) ctx->in.src_ptr + i;
-	ctx->out.dst_end = (void*) ctx->in.dst_ptr + j;
+	ctx->out.src_end = (void*) ((const uint8_t*) ctx->in.src_ptr + i);
+	ctx->out.dst_end = (void*) ((uint8_t*) ctx->in.dst_ptr + j);
 	return ret;
 }
 
@@ -85,7 +94,9 @@ EFI_STATUS encode_copy_convert(encode_convert_ctx* ctx) {
  */
 EFI_STATUS encode_center_convert(encode_convert_ctx* ctx) {
 	if (ctx->in.transfers) return EFI_UNSUPPORTED;
-	size_t tmp_buf_size = ctx->in.src_size * 4;
+	if (ctx->in.src_size > (SIZE_MAX - 4) / 4)
+		return EFI_OUT_OF_RESOURCES;
+	size_t tmp_buf_size = ctx->in.src_size * 4 + 4;
 	uint8_t* tmp_buf = (uint8_t*) malloc(tmp_buf_size);
 	if (!tmp_buf) return EFI_OUT_OF_RESOURCES;
 	encode_convert_ctx src_ctx = *ctx;
@@ -106,6 +117,9 @@ EFI_STATUS encode_center_convert(encode_convert_ctx* ctx) {
 	ret = encode_convert(&dst_ctx);
 	ctx->out = dst_ctx.out;
 	ctx->out.src_used = src_ctx.out.src_used;
+	ctx->out.src_end = (void*) (
+		(const uint8_t*) ctx->in.src_ptr + ctx->out.src_used
+	);
 	ctx->out.have_invalid =
 		src_ctx.out.have_invalid ||
 		dst_ctx.out.have_invalid;
