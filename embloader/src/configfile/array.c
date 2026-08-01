@@ -13,11 +13,13 @@ confignode* confignode_array_get(confignode* node, size_t index) {
 	if (!node || node->type != CONFIGNODE_TYPE_ARRAY) return NULL;
 	list* p;
 	if ((p = list_first(node->items))) do {
-			LIST_DATA_DECLARE(n, p, confignode*);
-			if (!n || n->parent != node || n->index != index)
-				continue;
-			return n;
-		} while ((p = p->next));
+		LIST_DATA_DECLARE(n, p, confignode*);
+		if (
+			!n || n->parent != node || n->index < 0 ||
+			(size_t) n->index != index
+		) continue;
+		return n;
+	} while ((p = p->next));
 	return NULL;
 }
 
@@ -102,7 +104,10 @@ bool confignode_array_insert(confignode* node, size_t index, confignode* sub) {
 	if (index == 0) status = list_obj_insert_new(&node->items, sub);
 	else if ((p = list_first(node->items))) do {
 		LIST_DATA_DECLARE(n, p, confignode*);
-		if (!n || n->parent != node || n->index != index) continue;
+		if (
+			!n || n->parent != node || n->index < 0 ||
+			(size_t) n->index != index
+		) continue;
 		status = list_insert_new(p, sub);
 		break;
 	} while ((p = p->next));
