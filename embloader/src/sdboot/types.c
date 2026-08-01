@@ -1,4 +1,6 @@
 #include <ctype.h>
+#include <errno.h>
+#include <limits.h>
 #include "sdboot.h"
 #include "log.h"
 #include "str-utils.h"
@@ -21,11 +23,12 @@ bool sdboot_parse_bool(
 	size_t len,
 	bool *out
 ) {
-	if (stringn_is_true(str, len) || strncmp(str, "1", len) == 0) {
+	if (!name || !str || len == 0 || !out) return false;
+	if (stringn_is_true(str, len) || str_match(str, len, "1")) {
 		*out = true;
 		return true;
 	}
-	if (stringn_is_false(str, len) || strncmp(str, "0", len) == 0) {
+	if (stringn_is_false(str, len) || str_match(str, len, "0")) {
 		*out = false;
 		return true;
 	}
@@ -53,9 +56,17 @@ bool sdboot_parse_int(
 	size_t len,
 	int *out
 ) {
+	if (!name || !str || len == 0 || !out) return false;
+	char *value = strndup(str, len);
+	if (!value) return false;
 	char *end = NULL;
-	long v = strtol(str, &end, 0);
-	if (!end || end == str || (size_t)(end - str) != len) {
+	errno = 0;
+	long v = strtol(value, &end, 0);
+	bool valid =
+		end != value && (size_t)(end - value) == len && *end == 0 &&
+		errno != ERANGE && v >= INT_MIN && v <= INT_MAX;
+	free(value);
+	if (!valid) {
 		log_warning(
 			"invalid integer value for '%s': %.*s",
 			name, (int)len, str
@@ -81,6 +92,7 @@ bool sdboot_parse_console_mode(
 	size_t len,
 	sdboot_console_mode *out
 ) {
+	if (!str || len == 0 || !out) return false;
 	if (str_match(str, len, "0"))
 		*out = MODE_UEFI_80_25;
 	else if (str_match(str, len, "1"))
@@ -119,6 +131,7 @@ bool sdboot_parse_secureboot_enroll(
 	size_t len,
 	sdboot_secureboot_enroll *out
 ) {
+	if (!str || len == 0 || !out) return false;
 	if (str_case_match(str, len, "off"))
 		*out = ENROLL_OFF;
 	else if (str_case_match(str, len, "manual"))
@@ -154,6 +167,7 @@ bool sdboot_parse_arch(
 	size_t len,
 	embloader_arch *out
 ) {
+	if (!str || len == 0 || !out) return false;
 	if (str_case_match(str, len, "x64"))
 		*out = ARCH_X86_64;
 	else if (str_case_match(str, len, "aa64"))
@@ -189,8 +203,11 @@ bool sdboot_parse_arch(
  */
 bool sdboot_parse_string(const char *str, size_t len, char **out) {
 	if (!str || len == 0 || !out) return false;
-	*out = strndup(str, len);
-	return *out != NULL;
+	char *value = strndup(str, len);
+	if (!value) return false;
+	free(*out);
+	*out = value;
+	return true;
 }
 
 /**
@@ -210,11 +227,14 @@ bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
 	size_t off = 0;
 	int token_count = 0;
 	while (off < len) {
-		while (off < len && isspace(str[off])) off++;
+		while (off < len && isspace((unsigned char)str[off])) off++;
 		if (off >= len) break;
 		const char *token_start = str + off;
 		size_t token_len = 0;
-		while (off + token_len < len && !isspace(str[off + token_len]))
+		while (
+			off + token_len < len &&
+			!isspace((unsigned char)str[off + token_len])
+		)
 			token_len++;
 		if (token_len > 0) {
 			int result = list_obj_add_new_strndup(out, token_start, token_len);

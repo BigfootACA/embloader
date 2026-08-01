@@ -875,7 +875,12 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected, uint64_t *flags
 	ctx.selected_item = ctx.def_num;
 	ctx.scroll_offset = 0;
 	ctx.have_timeout = ctx.menu->timeout >= 0;
-	ctx.timeout = ctx.menu->timeout * 1000;
+	if (ctx.menu->timeout < 0)
+		ctx.timeout = -1;
+	else if ((UINTN)ctx.menu->timeout > (UINTN)MAX_INTN / 1000)
+		ctx.timeout = MAX_INTN;
+	else
+		ctx.timeout = (INTN)ctx.menu->timeout * 1000;
 	ctx.force_redraw = true;
 	while (true) {
 		draw_once(&ctx);

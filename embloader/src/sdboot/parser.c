@@ -116,18 +116,21 @@ bool sdboot_boot_parse_line(
 	if ((!menu && !loader) || (menu && loader)) return false;
 	const char *orig_line = line;
 	size_t orig_len = len;
-	while (len > 0 && isspace(line[len - 1])) len--;
-	while (len > 0 && isspace(line[0])) line++, len--;
+	while (len > 0 && isspace((unsigned char)line[len - 1])) len--;
+	while (len > 0 && isspace((unsigned char)line[0])) line++, len--;
 	if (len == 0 || line[0] == '#') return true;
 	const char *sep = line;
-	for (; sep < line + len && !isspace(*sep); sep++);
+	for (; sep < line + len && !isspace((unsigned char)*sep); sep++);
 	if (sep >= line + len) return false;
 	const char *key = line, *value = sep;
-	while (value < line + len && isspace(*value)) value++;
+	while (value < line + len && isspace((unsigned char)*value)) value++;
 	if (value >= line + len) return false;
 	size_t key_len = sep - line, value_len = line + len - value;
 	if ((p = memchr(value, '#', value_len))) value_len = p - value;
-	while (value_len > 0 && isspace(value[value_len - 1])) value_len--;
+	while (
+		value_len > 0 &&
+		isspace((unsigned char)value[value_len - 1])
+	) value_len--;
 	if (key_len == 0 || value_len == 0) return false;
 	if (menu) ret = sdboot_boot_parse_menu_one(menu, key, key_len, value, value_len);
 	if (loader) ret = sdboot_boot_parse_loader_one(loader, key, key_len, value, value_len);
