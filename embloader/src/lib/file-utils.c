@@ -133,13 +133,13 @@ EFI_STATUS efi_file_set_size(EFI_FILE_PROTOCOL* file, size_t size) {
  * @return EFI_SUCCESS on success, error status on failure
  */
 EFI_STATUS efi_file_chunked_read(EFI_FILE_PROTOCOL* file, size_t offset, void* buffer, size_t size) {
-	EFI_STATUS status;
+	EFI_STATUS status, restore_status;
 	UINTN read_size;
 	UINT64 read_pos = 0, old_pos = 0;
 	if (!file || !buffer) return EFI_INVALID_PARAMETER;
 	if (size == 0) return EFI_SUCCESS;
 	status = file->GetPosition(file, &old_pos);
-	if (EFI_ERROR(status)) old_pos = 0;
+	if (EFI_ERROR(status)) return status;
 	status = file->SetPosition(file, offset);
 	if (EFI_ERROR(status)) return status;
 	while (read_pos < size) {
@@ -150,9 +150,15 @@ EFI_STATUS efi_file_chunked_read(EFI_FILE_PROTOCOL* file, size_t offset, void* b
 			status = EFI_END_OF_FILE;
 			break;
 		}
+		if (read_size > size - read_pos) {
+			status = EFI_BAD_BUFFER_SIZE;
+			break;
+		}
 		read_pos += read_size;
 	}
-	file->SetPosition(file, old_pos);
+	restore_status = file->SetPosition(file, old_pos);
+	if (!EFI_ERROR(status) && EFI_ERROR(restore_status))
+		return restore_status;
 	return status;
 }
 
