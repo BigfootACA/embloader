@@ -3,21 +3,98 @@ set -e
 
 PACKAGE="sdboot-is-embloader"
 
+get_loader_info() {
+    LC_ALL=C grep -aom1 '#### LoaderInfo: [^#]* ####' "$1" 2>/dev/null
+}
+
+get_embloader_version() {
+    LOADER_INFO=$(get_loader_info "$1") || return 1
+    case "$LOADER_INFO" in
+        "#### LoaderInfo: systemd 999."*" (embloader "*") ####")
+            LOADER_INFO=${LOADER_INFO#*" (embloader "}
+            LOADER_INFO=${LOADER_INFO%") ####"}
+            [ -n "$LOADER_INFO" ]
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+is_systemd_boot() {
+    LOADER_INFO=$(get_loader_info "$1") || return 1
+    case "$LOADER_INFO" in
+        "#### LoaderInfo: systemd-boot "*" ####")
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+get_diversion_owner() {
+    dpkg-divert --listpackage "$1" 2>/dev/null || true
+}
+
+validate_managed_path() {
+    MANAGED_PATH=$1
+    DIVERSION_OWNER=$(get_diversion_owner "$MANAGED_PATH")
+    if [ -n "$DIVERSION_OWNER" ] && [ "$DIVERSION_OWNER" != "$PACKAGE" ]; then
+        echo "Refusing to remove $MANAGED_PATH: diverted by $DIVERSION_OWNER" >&2
+        return 1
+    fi
+    if [ "$DIVERSION_OWNER" = "$PACKAGE" ] && \
+            { [ -e "$MANAGED_PATH" ] || [ -L "$MANAGED_PATH" ]; } && \
+            ! get_embloader_version "$MANAGED_PATH" >/dev/null; then
+        echo "Refusing to restore $MANAGED_PATH over an existing boot loader" >&2
+        return 1
+    fi
+}
+
+restore_managed_path() {
+    MANAGED_PATH=$1
+    DIVERSION_OWNER=$(get_diversion_owner "$MANAGED_PATH")
+    if get_embloader_version "$MANAGED_PATH" >/dev/null; then
+        rm -f "$MANAGED_PATH"
+    fi
+    if [ "$DIVERSION_OWNER" = "$PACKAGE" ]; then
+        dpkg-divert --package "$PACKAGE" --rename --remove "$MANAGED_PATH"
+    fi
+}
+
+restore_esp_loader() {
+    TARGET=$1
+    SOURCE=$2
+    if get_embloader_version "$TARGET" >/dev/null; then
+        if [ -n "$SOURCE" ]; then
+            install -Dm644 "$SOURCE" "$TARGET"
+        else
+            rm -f "$TARGET"
+            echo "Warning: no systemd-boot binary is available to restore $TARGET" >&2
+        fi
+    fi
+}
+
 case "$1" in
     remove|deconfigure)
         ARCH=$(dpkg --print-architecture)
         case "$ARCH" in
             amd64)
                 SDBOOT_EFI="systemd-bootx64.efi"
+                BOOT_EFI="BOOTX64.EFI"
                 ;;
             arm64)
                 SDBOOT_EFI="systemd-bootaa64.efi"
+                BOOT_EFI="BOOTAA64.EFI"
                 ;;
             i386)
                 SDBOOT_EFI="systemd-bootia32.efi"
+                BOOT_EFI="BOOTIA32.EFI"
                 ;;
             riscv64)
                 SDBOOT_EFI="systemd-bootriscv64.efi"
+                BOOT_EFI="BOOTRISCV64.EFI"
                 ;;
             *)
                 echo "Unsupported architecture: $ARCH" >&2
@@ -25,15 +102,27 @@ case "$1" in
                 ;;
         esac
 
-        for SDBOOT_PATH in "/usr/lib/systemd/boot/efi/$SDBOOT_EFI" "/usr/lib/systemd/boot/efi/$SDBOOT_EFI.signed"; do
-            if [ -f "$SDBOOT_PATH" ] || [ -L "$SDBOOT_PATH" ]; then
-                rm -f "$SDBOOT_PATH"
-            fi
+        SDBOOT_PATH="/usr/lib/systemd/boot/efi/$SDBOOT_EFI"
+        SIGNED_SDBOOT_PATH="${SDBOOT_PATH}.signed"
+        validate_managed_path "$SDBOOT_PATH"
+        validate_managed_path "$SIGNED_SDBOOT_PATH"
+        restore_managed_path "$SDBOOT_PATH"
+        restore_managed_path "$SIGNED_SDBOOT_PATH"
 
-            if dpkg-divert --list "$SDBOOT_PATH" | grep -q "$PACKAGE"; then
-                dpkg-divert --package "$PACKAGE" --rename --remove "$SDBOOT_PATH"
+        RESTORE_SOURCE=
+        if is_systemd_boot "$SIGNED_SDBOOT_PATH"; then
+            RESTORE_SOURCE="$SIGNED_SDBOOT_PATH"
+        elif is_systemd_boot "$SDBOOT_PATH"; then
+            RESTORE_SOURCE="$SDBOOT_PATH"
+        fi
+
+        if command -v bootctl >/dev/null 2>&1; then
+            ESP_PATH=$(bootctl --print-esp-path 2>/dev/null) || ESP_PATH=
+            if [ -n "$ESP_PATH" ]; then
+                restore_esp_loader "$ESP_PATH/EFI/systemd/$SDBOOT_EFI" "$RESTORE_SOURCE"
+                restore_esp_loader "$ESP_PATH/EFI/BOOT/$BOOT_EFI" "$RESTORE_SOURCE"
             fi
-        done
+        fi
         ;;
 esac
 
