@@ -1,7 +1,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
-#include "sdboot.h"
+#include "internal.h"
 #include "log.h"
 #include "str-utils.h"
 
@@ -48,17 +48,17 @@ bool sdboot_parse_bool(
  * @param str the input string to parse (must not be NULL)
  * @param len the length of the input string
  * @param out pointer to store the parsed integer value (must not be NULL)
- * @return true on successful parsing, false on invalid input or overflow
+ * @return parse status distinguishing invalid input from allocation failure
  */
-bool sdboot_parse_int(
+sdboot_parse_status sdboot_parse_int_status(
 	const char *name,
 	const char *str,
 	size_t len,
 	int *out
 ) {
-	if (!name || !str || len == 0 || !out) return false;
+	if (!name || !str || len == 0 || !out) return SDBOOT_PARSE_INVALID;
 	char *value = strndup(str, len);
-	if (!value) return false;
+	if (!value) return SDBOOT_PARSE_OUT_OF_RESOURCES;
 	char *end = NULL;
 	errno = 0;
 	long v = strtol(value, &end, 0);
@@ -71,10 +71,19 @@ bool sdboot_parse_int(
 			"invalid integer value for '%s': %.*s",
 			name, (int)len, str
 		);
-		return false;
+		return SDBOOT_PARSE_INVALID;
 	}
 	*out = (int)v;
-	return true;
+	return SDBOOT_PARSE_SUCCESS;
+}
+
+bool sdboot_parse_int(
+	const char *name,
+	const char *str,
+	size_t len,
+	int *out
+) {
+	return sdboot_parse_int_status(name, str, len, out) == SDBOOT_PARSE_SUCCESS;
 }
 
 /**
@@ -199,15 +208,23 @@ bool sdboot_parse_arch(
  * @param str the input string to parse (must not be NULL)
  * @param len the length of the input string (must be > 0)
  * @param out pointer to store the duplicated string (must not be NULL)
- * @return true on successful allocation, false on memory allocation failure
+ * @return parse status distinguishing invalid input from allocation failure
  */
-bool sdboot_parse_string(const char *str, size_t len, char **out) {
-	if (!str || len == 0 || !out) return false;
+sdboot_parse_status sdboot_parse_string_status(
+	const char *str,
+	size_t len,
+	char **out
+) {
+	if (!str || len == 0 || !out) return SDBOOT_PARSE_INVALID;
 	char *value = strndup(str, len);
-	if (!value) return false;
+	if (!value) return SDBOOT_PARSE_OUT_OF_RESOURCES;
 	free(*out);
 	*out = value;
-	return true;
+	return SDBOOT_PARSE_SUCCESS;
+}
+
+bool sdboot_parse_string(const char *str, size_t len, char **out) {
+	return sdboot_parse_string_status(str, len, out) == SDBOOT_PARSE_SUCCESS;
 }
 
 /**
@@ -220,12 +237,17 @@ bool sdboot_parse_string(const char *str, size_t len, char **out) {
  * @param str the input string to parse (must not be NULL)
  * @param len the length of the input string (must be > 0)
  * @param out pointer to store the created list (must not be NULL)
- * @return true if at least one token was parsed, false on error or empty input
+ * @return parse status distinguishing empty input from allocation failure
  */
-bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
-	if (!str || len == 0 || !out) return false;
+sdboot_parse_status sdboot_parse_string_list_status(
+	const char *str,
+	size_t len,
+	list **out
+) {
+	if (!str || len == 0 || !out) return SDBOOT_PARSE_INVALID;
 	size_t off = 0;
 	int token_count = 0;
+	list *values = NULL;
 	while (off < len) {
 		while (off < len && isspace((unsigned char)str[off])) off++;
 		if (off >= len) break;
@@ -237,13 +259,27 @@ bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
 		)
 			token_len++;
 		if (token_len > 0) {
-			int result = list_obj_add_new_strndup(out, token_start, token_len);
-			if (result != 0) return false;
+			int result = list_obj_add_new_strndup(
+				&values, token_start, token_len
+			);
+			if (result != 0) {
+				list_free_all_def(values);
+				return SDBOOT_PARSE_OUT_OF_RESOURCES;
+			}
 			token_count++;
 		}
 		off += token_len;
 	}
-	return token_count > 0;
+	if (token_count == 0) return SDBOOT_PARSE_INVALID;
+	if (list_obj_add(out, values) != 0) {
+		list_free_all_def(values);
+		return SDBOOT_PARSE_INVALID;
+	}
+	return SDBOOT_PARSE_SUCCESS;
+}
+
+bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
+	return sdboot_parse_string_list_status(str, len, out) == SDBOOT_PARSE_SUCCESS;
 }
 
 /**
@@ -255,9 +291,9 @@ bool sdboot_parse_string_list(const char *str, size_t len, list **out) {
  * @param str the input string to parse (must not be NULL)
  * @param len the length of the input string
  * @param out pointer to store the parsed timeout value (must not be NULL)
- * @return true on successful parsing, false on invalid input
+ * @return parse status distinguishing invalid input from allocation failure
  */
-bool sdboot_parse_timeout(
+sdboot_parse_status sdboot_parse_timeout_status(
 	const char *str,
 	size_t len,
 	int *out
@@ -268,6 +304,14 @@ bool sdboot_parse_timeout(
 		*out = 0;
 	else if (str_case_match(str, len, "menu-disabled"))
 		*out = 0;
-	else return sdboot_parse_int("timeout", str, len, out);
-	return true;
+	else return sdboot_parse_int_status("timeout", str, len, out);
+	return SDBOOT_PARSE_SUCCESS;
+}
+
+bool sdboot_parse_timeout(
+	const char *str,
+	size_t len,
+	int *out
+) {
+	return sdboot_parse_timeout_status(str, len, out) == SDBOOT_PARSE_SUCCESS;
 }

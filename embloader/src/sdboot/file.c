@@ -88,15 +88,12 @@ EFI_STATUS sdboot_boot_load_file(
 		}
 		log_debug("created sdboot loader %s", loader->name);
 	}
-	bool ret = sdboot_boot_parse_content(
+	status = sdboot_boot_parse_content(
 		fname, buff, flen,
 		is_entry ? NULL : &menu->menu,
 		is_entry ? loader : NULL
 	);
-	if (!ret) {
-		status = EFI_LOAD_ERROR;
-		goto fail;
-	}
+	if (EFI_ERROR(status)) goto fail;
 	if (is_entry && !sdboot_boot_loader_check(loader)) {
 		log_warning("sdboot boot loader %s is invalid", loader->name);
 		status = EFI_LOAD_ERROR;
