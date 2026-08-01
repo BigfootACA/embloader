@@ -8,6 +8,8 @@
 #include "efi-utils.h"
 #include "efi-dt-fixup.h"
 
+static void *installed_fdt_allocation;
+
 static EFI_STATUS efi_dtfixup(void *tree) {
 	int ret;
 	UINTN size = 0;
@@ -15,12 +17,17 @@ static EFI_STATUS efi_dtfixup(void *tree) {
 	void *buff = NULL;
 	EFI_DT_FIXUP_PROTOCOL *dtfixup = NULL;
 	status = gBS->LocateProtocol(&gEfiDtFixupProtocolGuid, NULL, (VOID**)&dtfixup);
-	if (EFI_ERROR(status) || !dtfixup) {
-		if (status != EFI_NOT_FOUND) log_warning(
+	if (EFI_ERROR(status)) {
+		if (status == EFI_NOT_FOUND) return EFI_SUCCESS;
+		log_warning(
 			"failed to locate dtfixup protocol: %s",
 			efi_status_to_string(status)
 		);
 		return status;
+	}
+	if (!dtfixup || !dtfixup->Fixup) {
+		log_warning("dtfixup protocol returned no valid interface");
+		return EFI_PROTOCOL_ERROR;
 	}
 	if (!(buff = AllocateZeroPool(SIZE_2MB))) {
 		log_error("failed to allocate memory for dtfixup");
@@ -31,7 +38,11 @@ static EFI_STATUS efi_dtfixup(void *tree) {
 		status = EFI_DEVICE_ERROR;
 		goto done;
 	}
-	fdt_pack(buff);
+	if ((ret = fdt_pack(buff)) != 0) {
+		log_error("failed to pack fdt for dtfixup: %s", fdt_strerror(ret));
+		status = EFI_DEVICE_ERROR;
+		goto done;
+	}
 	log_debug("applying efi dtfixup protocol");
 	status = dtfixup->Fixup(
 		dtfixup, buff, &size,
@@ -42,6 +53,7 @@ static EFI_STATUS efi_dtfixup(void *tree) {
 			"efi dtfixup does not return buffer size: %s",
 			efi_status_to_string(status)
 		);
+		if (!EFI_ERROR(status)) status = EFI_PROTOCOL_ERROR;
 		goto done;
 	}
 	if (size > SIZE_2MB) {
@@ -99,8 +111,17 @@ EFI_STATUS linux_install_fdt(fdt fdt) {
 	}
 	memset(copied, 0, SIZE_2MB);
 	memcpy(copied, fdt, size);
-	if (confignode_path_get_bool(g_embloader.config, "efi.dtfixup", true, NULL))
-		efi_dtfixup(copied);
+	if (confignode_path_get_bool(g_embloader.config, "efi.dtfixup", true, NULL)) {
+		status = efi_dtfixup(copied);
+		if (EFI_ERROR(status)) {
+			log_error(
+				"failed to apply efi dtfixup: %s",
+				efi_status_to_string(status)
+			);
+			FreeAlignedPages(copied, EFI_SIZE_TO_PAGES(SIZE_2MB));
+			return status;
+		}
+	}
 	int ret = fdt_pack(copied);
 	if (ret != 0) {
 		log_error("failed to finalize fdt: %s", fdt_strerror(ret));
@@ -116,6 +137,10 @@ EFI_STATUS linux_install_fdt(fdt fdt) {
 		FreeAlignedPages(copied, EFI_SIZE_TO_PAGES(SIZE_2MB));
 		return status;
 	}
+	void *previous = installed_fdt_allocation;
+	installed_fdt_allocation = copied;
+	if (previous)
+		FreeAlignedPages(previous, EFI_SIZE_TO_PAGES(SIZE_2MB));
 	return EFI_SUCCESS;
 }
 
