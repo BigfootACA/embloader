@@ -1,6 +1,37 @@
 #include "yaml.h"
 #include "internal.h"
 #include "str-utils.h"
+#include <errno.h>
+
+typedef enum scalar_number_result {
+	SCALAR_NUMBER_INVALID,
+	SCALAR_NUMBER_VALID,
+	SCALAR_NUMBER_OUT_OF_RANGE,
+} scalar_number_result;
+
+static scalar_number_result parse_scalar_int(const char* value, int64_t* out) {
+	char* end = NULL;
+	errno = 0;
+	long long parsed = strtoll(value, &end, 10);
+	if (!end || end == value || *end != 0) return SCALAR_NUMBER_INVALID;
+	if (errno == ERANGE) return SCALAR_NUMBER_OUT_OF_RANGE;
+	*out = parsed;
+	return SCALAR_NUMBER_VALID;
+}
+
+static scalar_number_result parse_scalar_float(const char* value, double* out) {
+	char* end = NULL;
+	errno = 0;
+	double parsed = strtod(value, &end);
+	if (!end || end == value || *end != 0) return SCALAR_NUMBER_INVALID;
+	if (errno == ERANGE) return SCALAR_NUMBER_OUT_OF_RANGE;
+	*out = parsed;
+	return SCALAR_NUMBER_VALID;
+}
+
+static bool scalar_is_null(const char* value) {
+	return strcmp(value, "null") == 0 || strcmp(value, "~") == 0 || strlen(value) == 0;
+}
 
 static confignode* parse_yaml_node(yaml_parser_t* parser, yaml_event_t* event) {
 	switch (event->type) {
@@ -10,35 +41,40 @@ static confignode* parse_yaml_node(yaml_parser_t* parser, yaml_event_t* event) {
 			if (tag && strcmp(tag, YAML_STR_TAG) == 0) {
 				return confignode_new_string(value);
 			} else if (tag && strcmp(tag, YAML_BOOL_TAG) == 0) {
-				return confignode_new_bool(
-					string_is_true(value));
+				if (!string_is_true(value) && !string_is_false(value))
+					return NULL;
+				return confignode_new_bool(string_is_true(value));
 			} else if (tag && strcmp(tag, YAML_INT_TAG) == 0) {
-				return confignode_new_int(
-					strtoll(value, NULL, 10));
+				int64_t parsed;
+				if (parse_scalar_int(value, &parsed) != SCALAR_NUMBER_VALID)
+					return NULL;
+				return confignode_new_int(parsed);
 			} else if (tag && strcmp(tag, YAML_FLOAT_TAG) == 0) {
-				return confignode_new_float(strtod(value, NULL));
+				double parsed;
+				if (parse_scalar_float(value, &parsed) != SCALAR_NUMBER_VALID)
+					return NULL;
+				return confignode_new_float(parsed);
 			} else if (tag && strcmp(tag, YAML_NULL_TAG) == 0) {
-				return confignode_new();
+				return scalar_is_null(value) ? confignode_new() : NULL;
 			} else if (
 				tag || event->data.scalar.style != YAML_PLAIN_SCALAR_STYLE
 			) {
 				return confignode_new_string(value);
-			} else if (
-				strcmp(value, "null") == 0 ||
-				strcmp(value, "~") == 0 ||
-				strlen(value) == 0
-			) {
+			} else if (scalar_is_null(value)) {
 				return confignode_new();
 			} else if (string_is_true(value) || string_is_false(value)) {
 				return confignode_new_bool(string_is_true(value));
 			} else {
-				char* end = NULL;
-				long long int_val = strtoll(value, &end, 10);
-				if (end && *end == 0)
+				int64_t int_val;
+				scalar_number_result result = parse_scalar_int(value, &int_val);
+				if (result == SCALAR_NUMBER_VALID)
 					return confignode_new_int(int_val);
-				double float_val = strtod(value, &end);
-				if (end && *end == 0)
+				if (result == SCALAR_NUMBER_OUT_OF_RANGE) return NULL;
+				double float_val;
+				result = parse_scalar_float(value, &float_val);
+				if (result == SCALAR_NUMBER_VALID)
 					return confignode_new_float(float_val);
+				if (result == SCALAR_NUMBER_OUT_OF_RANGE) return NULL;
 				return confignode_new_string(value);
 			}
 		}
