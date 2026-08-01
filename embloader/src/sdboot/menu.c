@@ -35,6 +35,15 @@ static bool sdboot_check_fs(embloader_dir *dir) {
 	return true;
 }
 
+static EFI_STATUS sdboot_boot_load_dir(sdboot_menu *menu, embloader_dir *dir) {
+	EFI_STATUS status = sdboot_boot_load_root(menu, dir);
+	if (EFI_ERROR(status) && dir && dir->root) {
+		dir->root->Close(dir->root);
+		dir->root = NULL;
+	}
+	return status;
+}
+
 static bool menu_loader_compare(list *l, void *d) {
 	if (!l || !d) return false;
 	LIST_DATA_DECLARE(el, l, embloader_loader*);
@@ -358,7 +367,7 @@ EFI_STATUS sdboot_boot_load_menu() {
 	if ((li = efi_get_loaded_image())) {
 		dir.handle = li->DeviceHandle;
 		if (sdboot_check_fs(&dir)) {
-			status = sdboot_boot_load_root(menu, &dir);
+				status = sdboot_boot_load_dir(menu, &dir);
 			if (!EFI_ERROR(status)) {
 				log_info("loaded systemd-boot menu from current device");
 				have_success = true;
@@ -369,7 +378,7 @@ EFI_STATUS sdboot_boot_load_menu() {
 	if (have_success && !use_multiple) goto done;
 	dir.handle = g_embloader.dir.handle;
 	if (sdboot_check_fs(&dir)) {
-		status = sdboot_boot_load_root(menu, &dir);
+		status = sdboot_boot_load_dir(menu, &dir);
 		if (!EFI_ERROR(status)) {
 			log_info("loaded systemd-boot menu from previous device");
 			have_success = true;
@@ -385,11 +394,8 @@ EFI_STATUS sdboot_boot_load_menu() {
 	if (!EFI_ERROR(status)) for (UINTN i = 0; i < handle_count; i++) {
 		dir.handle = handles[i];
 		if (!sdboot_check_fs(&dir)) continue;
-		status = sdboot_boot_load_root(menu, &dir);
-		if (EFI_ERROR(status)) {
-			dir.root->Close(dir.root);
-			dir.root = NULL;
-		} else {
+		status = sdboot_boot_load_dir(menu, &dir);
+		if (!EFI_ERROR(status)) {
 			log_info("loaded systemd-boot menu from scanned device %" PRIuPTR, i);
 			have_success = true;
 			if (!use_multiple) goto done;
