@@ -9,22 +9,26 @@ IMAGE_NAME="embloader-boot.img"
 IMAGE_SIZE_MIB=128
 MOUNT_POINT=""
 IMAGE_PATH="$BUILD_DIR/$IMAGE_NAME"
+QEMU_LOG="$PROJECT_ROOT/qemu.log"
 LOOP_DEVICE=""
 if [ -z "${EDK2_TARGET:-}" ]; then
 	export EDK2_TARGET=RELEASE
 fi
-if [ -z "$ARCH" ]; then
-	export ARCH="$(uname -m)"
+if [ -z "${ARCH:-}" ]; then
+	ARCH="$(uname -m)"
+	export ARCH
 fi
 case "$ARCH" in
-	x86_64|x64|amd64) export EDK2_ARCH=X64 ;;
-	aarch64|arm64|armv8a|armv8l) export EDK2_ARCH=AARCH64 ;;
-	i386|i486|i586|i686|x86|ia32) export EDK2_ARCH=IA32 ;;
-	riscv64) export EDK2_ARCH=RISCV64 ;;
+	x86_64|x64|amd64) ARCH=x86_64; EDK2_ARCH=X64 ;;
+	aarch64|arm64|armv8a) ARCH=aarch64; EDK2_ARCH=AARCH64 ;;
+	arm|armhf|arm32|armv6l|armv7l|armv8l) ARCH=arm; EDK2_ARCH=ARM ;;
+	i386|i486|i586|i686|x86|ia32) ARCH=i386; EDK2_ARCH=IA32 ;;
+	riscv64) EDK2_ARCH=RISCV64 ;;
 	*) echo "Unsupported architecture: $ARCH" >&2; exit 1 ;;
 esac
-typeset -l EDK2_LARCH
-export EDK2_LARCH="$EDK2_ARCH"
+export ARCH EDK2_ARCH
+EDK2_LARCH="${EDK2_ARCH,,}"
+export EDK2_LARCH
 
 function cleanup() {
 	if [ -n "$MOUNT_POINT" ] && mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
@@ -40,22 +44,34 @@ function cleanup() {
 
 trap cleanup EXIT
 
-command -v dd >/dev/null || { echo "Missing dd"; exit 1; }
-command -v mkfs.fat >/dev/null || { echo "Missing mkfs.fat"; exit 1; }
-command -v parted >/dev/null || { echo "Missing parted"; exit 1; }
-command -v losetup >/dev/null || { echo "Missing losetup"; exit 1; }
+function check_tool() {
+	command -v "$1" >/dev/null || { echo "Missing $1"; exit 1; }
+}
 
 function build_efi(){
 	cd "$PROJECT_ROOT"
-	make -j 4
+	bash build.sh
 }
 
 function pack_boot(){
-	if [ -z "$OLD_UID" ]; then
+	cd "$PROJECT_ROOT"
+	for tool in dd mkfs.fat parted losetup mount mountpoint umount mktemp; do
+		check_tool "$tool"
+	done
+	if [ -z "${OLD_UID:-}" ]; then
 		export OLD_UID="$UID"
 	fi
+	if [ -z "${OLD_GID:-}" ]; then
+		OLD_GID="$(id -g)"
+		export OLD_GID
+	fi
+	if [[ ! "$OLD_UID" =~ ^[0-9]+$ ]] || [[ ! "$OLD_GID" =~ ^[0-9]+$ ]]; then
+		echo "Invalid owner: $OLD_UID:$OLD_GID" >&2
+		exit 1
+	fi
 	if [ "$UID" != 0 ]; then
-		sudo -E bash -$- "$0" pack_boot
+		check_tool sudo
+		sudo -E bash "$SCRIPT_DIR/run.sh" pack_boot
 		return
 	fi
 	mkdir -p "$BUILD_DIR"
@@ -76,9 +92,13 @@ function pack_boot(){
 	mkdir -p "$MOUNT_POINT/EFI/BOOT"
 	EFIARCH=""
 	EFIFILE=""
-	case "$(uname -m)" in
-		x86_64) EFIARCH="X64"; EFIFILE="BOOTX64.EFI" ;;
-		aarch64) EFIARCH="AARCH64"; EFIFILE="BOOTAA64.EFI" ;;
+	case "$EDK2_ARCH" in
+		X64) EFIARCH="X64"; EFIFILE="BOOTX64.EFI" ;;
+		AARCH64) EFIARCH="AARCH64"; EFIFILE="BOOTAA64.EFI" ;;
+		ARM) EFIARCH="ARM"; EFIFILE="BOOTARM.EFI" ;;
+		IA32) EFIARCH="IA32"; EFIFILE="BOOTIA32.EFI" ;;
+		RISCV64) EFIARCH="RISCV64"; EFIFILE="BOOTRISCV64.EFI" ;;
+		*) echo "Unsupported EFI architecture: $EDK2_ARCH" >&2; exit 1 ;;
 	esac
 	cp \
 		"build/Build/embloader/${EDK2_TARGET:-RELEASE}_${EDK2_TOOLCHAIN:-GCC5}/$EFIARCH/embloader.efi" \
@@ -128,7 +148,7 @@ function pack_boot(){
 	losetup -d "$LOOP_DEVICE"
 	LOOP_DEVICE=""
 
-	chown "$OLD_UID" "$IMAGE_PATH"
+	chown -- "$OLD_UID:$OLD_GID" "$IMAGE_PATH"
 }
 
 function run_qemu_x86_64(){
@@ -138,7 +158,7 @@ function run_qemu_x86_64(){
 		-display none \
 		-serial stdio \
 		-bios /usr/share/edk2/x64/OVMF.4m.fd \
-		-drive file=$IMAGE_PATH,if=virtio,format=raw
+		-drive "file=$IMAGE_PATH,if=virtio,format=raw"
 }
 
 function run_qemu_aarch64_debug_real(){
@@ -154,18 +174,20 @@ function run_qemu_aarch64_debug_real(){
 		-device usb-kbd \
 		-device usb-mouse \
 		-device usb-tablet \
-		-bios local/QEMU_EFI.fd \
-		-drive file=$IMAGE_PATH,if=virtio,format=raw \
+		-bios "$PROJECT_ROOT/local/QEMU_EFI.fd" \
+		-drive "file=$IMAGE_PATH,if=virtio,format=raw" \
 		-s
 }
 
 function run_qemu_aarch64_debug(){
+	local run_command
+	printf -v run_command 'bash %q run_qemu_aarch64_debug_real' "$SCRIPT_DIR/run.sh"
 	exec script \
 		--return \
-		--log-out qemu.log \
+		--log-out "$QEMU_LOG" \
 		--flush \
 		--quiet \
-		-c "bash -$- '$0' run_qemu_aarch64_debug_real"
+		-c "$run_command"
 }
 
 function run_qemu_aarch64_release(){
@@ -178,7 +200,7 @@ function run_qemu_aarch64_release(){
 		-bios /usr/share/edk2/aarch64/QEMU_CODE.fd \
 		-cpu host \
 		-enable-kvm \
-		-drive file=$IMAGE_PATH,if=virtio,format=raw
+		-drive "file=$IMAGE_PATH,if=virtio,format=raw"
 }
 
 function run_qemu_aarch64(){
@@ -190,10 +212,10 @@ function run_qemu_aarch64(){
 }
 
 function run_qemu(){
-	case "$(uname -m)" in
-		x86_64) run_qemu_x86_64 ;;
-		aarch64) run_qemu_aarch64 ;;
-		*) echo "Unsupported architecture: $(uname -m)"; exit 1 ;;
+	case "$EDK2_ARCH" in
+		X64) run_qemu_x86_64 ;;
+		AARCH64) run_qemu_aarch64 ;;
+		*) echo "Unsupported QEMU architecture: $EDK2_ARCH"; exit 1 ;;
 	esac
 }
 
@@ -207,4 +229,5 @@ case "$1" in
 	run_qemu_aarch64_debug) run_qemu_aarch64_debug ;;
 	run_qemu_aarch64_debug_real) run_qemu_aarch64_debug_real ;;
 	"") build_efi; pack_boot; run_qemu ;;
+	*) echo "Unknown command: $1" >&2; exit 1 ;;
 esac
