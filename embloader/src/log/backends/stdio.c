@@ -1,6 +1,18 @@
 #include "../internal.h"
 #include <unistd.h>
 
+static int log_stdio_write_all(int fd, const char *buffer, size_t size) {
+	size_t offset = 0;
+	ssize_t written;
+	if (fd < 0 || (!buffer && size > 0)) return -1;
+	while (offset < size) {
+		written = write(fd, buffer + offset, size - offset);
+		if (written <= 0 || (size_t) written > size - offset) return -1;
+		offset += (size_t) written;
+	}
+	return 0;
+}
+
 static int log_stdio_writer(log_backend *backend, log_item *item) {
 	int ret = -1, fd = 1;
 	char *format, *output, *formatted;
@@ -15,7 +27,7 @@ static int log_stdio_writer(log_backend *backend, log_item *item) {
 		else fd = -1;
 	}
 	if (formatted && fd > 0)
-		ret = (int)write(fd, formatted, strlen(formatted));
+		ret = log_stdio_write_all(fd, formatted, strlen(formatted));
 	if (formatted) free(formatted);
 	if (format) free(format);
 	if (output) free(output);
