@@ -30,8 +30,10 @@ bool embloader_menu_is_complete() {
 
 static bool loader_filter_profiles(confignode *node, const char *path, bool dir) {
 	confignode_path_foreach(iter, node, path) {
-		char *profile = confignode_value_get_string(iter.node, NULL, NULL);
-		if (!profile) continue;
+		if (!confignode_is_type(iter.node, CONFIGNODE_TYPE_VALUE)) continue;
+		bool ok = false;
+		char *profile = confignode_value_get_string(iter.node, NULL, &ok);
+		if (!ok || !profile) return false;
 		bool have = list_search_string(g_embloader.profiles, profile) != NULL;
 		free(profile);
 		if (have != dir) return false;

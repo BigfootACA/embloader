@@ -58,10 +58,12 @@ list* embloader_dt_get_dtbo_dir() {
 }
 
 static bool dtbo_matches_active_profile(confignode *node) {
-	char *profile = confignode_path_get_string(
-		node, "profile", NULL, NULL
-	);
-	if (!profile) return true;
+	confignode *profile_node = confignode_path_lookup(node, "profile", false);
+	if (!profile_node) return true;
+	if (!confignode_is_type(profile_node, CONFIGNODE_TYPE_VALUE)) return false;
+	bool ok = false;
+	char *profile = confignode_value_get_string(profile_node, NULL, &ok);
+	if (!ok || !profile) return false;
 	bool matches = !profile[0] ||
 		list_search_string(g_embloader.profiles, profile) != NULL;
 	free(profile);
