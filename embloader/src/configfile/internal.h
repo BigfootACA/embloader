@@ -28,4 +28,6 @@ extern confignode* configfile_json_load_string(const char* buff);
 extern char* configfile_json_save_string(confignode* node);
 extern confignode* configfile_yaml_load_string(const char* buff);
 extern char* configfile_yaml_save_string(confignode* node);
+extern confignode* configfile_conf_load_string(const char* buff);
+extern char* configfile_conf_save_string(confignode* node);
 #endif

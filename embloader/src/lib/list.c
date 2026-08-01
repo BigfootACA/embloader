@@ -7,6 +7,7 @@
  */
 
 #include <errno.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
 #include "list.h"
@@ -149,11 +150,14 @@ list* list_duplicate(list* lst, list* end) {
 list* list_duplicate_chars(list* lst, list* end) {
 	if (!lst) EPRET(EINVAL);
 	list *x, *r;
-	if (!(x = list_first(lst)) || !(r = list_new_strdup(x->data)))
+	if (
+		!(x = list_first(lst)) || !x->data ||
+		!(r = list_new_strdup(x->data))
+	)
 		return NULL;
 	while ((x = x->next) && x != end) {
-		if (list_push_new_strdup(r, x->data) < 0) {
-			list_free_all(r, NULL);
+		if (!x->data || list_push_new_strdup(r, x->data) < 0) {
+			list_free_all_def(r);
 			return NULL;
 		}
 	}
@@ -369,9 +373,10 @@ bool list_string_case_comparator(list* f, void* v) {
 bool list_string_sorter(list* l1, list* l2) {
 	LIST_DATA_DECLARE(s1, l1, char*);
 	LIST_DATA_DECLARE(s2, l2, char*);
+	if (!s1 || !s2) return s1 == NULL && s2 != NULL;
 	for (size_t i = 0; s1[i] && s2[i]; i++)
 		if (s1[i] != s2[i]) return s1[i] > s2[i];
-	return false;
+	return strlen(s1) > strlen(s2);
 }
 
 list* list_search_string(list* lst, const char* str) {
@@ -394,6 +399,7 @@ int list_reverse(list* lst) {
 
 char* list_string_append(list* lst, char* buff, size_t len, char* sep) {
 	list* l;
+	if (!lst || !buff || len == 0) return NULL;
 	if ((l = list_first(lst))) do {
 		LIST_DATA_DECLARE(str, l, char*);
 		if (!str || !str[0]) continue;
@@ -404,16 +410,22 @@ char* list_string_append(list* lst, char* buff, size_t len, char* sep) {
 }
 
 char* list_to_string(list* lst, char* sep) {
-	size_t total_len = 0;
+	size_t count = 0, sep_len, total_len = 1;
 	list* p;
 	if (!lst || !sep) return NULL;
+	sep_len = strlen(sep);
 	if ((p = list_first(lst))) do {
 		LIST_DATA_DECLARE(str, p, char*);
 		if (!str || !str[0]) continue;
-		total_len += strlen(str) + strlen(sep);
+		size_t str_len = strlen(str);
+		if (
+			str_len > SIZE_MAX - total_len ||
+			(count > 0 && sep_len > SIZE_MAX - total_len - str_len)
+		) return NULL;
+		total_len += str_len;
+		if (count++ > 0) total_len += sep_len;
 	} while ((p = p->next));
-	if (total_len == 0) return NULL;
-	total_len += 2;
+	if (count == 0) return NULL;
 	char* str = malloc(total_len);
 	if (!str) return NULL;
 	memset(str, 0, total_len);

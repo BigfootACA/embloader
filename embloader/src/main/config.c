@@ -17,8 +17,11 @@ bool embloader_load_config_one(const char *name) {
 		log_warning("Failed to parse config file %s", name);
 		return false;
 	}
-	if (!confignode_merge(g_embloader.config, newcfg))
+	if (!confignode_merge(g_embloader.config, newcfg)) {
 		log_warning("Failed to merge config file %s", name);
+		confignode_clean(newcfg);
+		return false;
+	}
 	confignode_clean(newcfg);
 	log_info("Loaded config file %s", name);
 	return true;

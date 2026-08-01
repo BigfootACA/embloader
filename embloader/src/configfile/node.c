@@ -123,11 +123,11 @@ confignode* confignode_new() {
  */
 bool confignode_set_key(confignode* node, const char* key) {
 	if (!node) return false;
+	char* new_key = NULL;
+	if (key && !(new_key = strdup(key))) return false;
 	if (node->key) free(node->key);
-	node->key = NULL;
-	if (!key) return true;
-	node->key = strdup(key);
-	return node->key != NULL;
+	node->key = new_key;
+	return true;
 }
 
 /**

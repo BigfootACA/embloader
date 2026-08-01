@@ -21,6 +21,8 @@ confignode* configfile_load_string(configfile_type type, const char* buff) {
 			return configfile_json_load_string(buff);
 		case CONFIGFILE_TYPE_YAML:
 			return configfile_yaml_load_string(buff);
+		case CONFIGFILE_TYPE_CONF:
+			return configfile_conf_load_string(buff);
 		default:
 			return NULL;
 	}
@@ -44,6 +46,8 @@ char* configfile_save_string(configfile_type type, confignode* node) {
 			return configfile_json_save_string(node);
 		case CONFIGFILE_TYPE_YAML:
 			return configfile_yaml_save_string(node);
+		case CONFIGFILE_TYPE_CONF:
+			return configfile_conf_save_string(node);
 		default:
 			return NULL;
 	}

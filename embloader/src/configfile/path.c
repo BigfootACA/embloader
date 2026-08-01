@@ -1,6 +1,64 @@
 #include <inttypes.h>
 #include "internal.h"
 
+static bool confignode_path_parse_index(
+	const char* start,
+	const char* end,
+	size_t* index
+) {
+	if (!start || !end || !index || start >= end) return false;
+	size_t value = 0;
+	for (const char* p = start; p < end; p++) {
+		if (*p < '0' || *p > '9') return false;
+		size_t digit = (size_t) (*p - '0');
+		if (value > (SIZE_MAX - digit) / 10) return false;
+		value = value * 10 + digit;
+	}
+	if (value > SIZE_MAX / 2) return false;
+	*index = value;
+	return true;
+}
+
+static bool confignode_path_validate(const char* path) {
+	if (!path) return false;
+	if (!path[0]) return true;
+	if (path[0] == '[') {
+		const char* close = strchr(path + 1, ']');
+		size_t index;
+		if (!close || !confignode_path_parse_index(path + 1, close, &index))
+			return false;
+		const char* next = close + 1;
+		if (!*next) return true;
+		if (*next == '.') {
+			next++;
+			if (!*next) return false;
+		} else if (*next != '[') return false;
+		return confignode_path_validate(next);
+	}
+	const char* delim = strpbrk(path, ".[" );
+	if (!delim) return true;
+	if (delim == path) return false;
+	const char* next = *delim == '[' ? delim : delim + 1;
+	return *next && confignode_path_validate(next);
+}
+
+static bool confignode_path_require_type(
+	confignode** node,
+	confignode_type type,
+	bool create
+) {
+	if ((*node)->type == type) return true;
+	if (!create || !(*node)->parent) return false;
+	confignode* replacement = type == CONFIGNODE_TYPE_ARRAY ?
+		confignode_new_array() : confignode_new_map();
+	if (!replacement) return false;
+	if (!confignode_replace(node, replacement)) {
+		confignode_clean(replacement);
+		return false;
+	}
+	return true;
+}
+
 /**
  * @brief Look up a config node by path string, optionally creating missing nodes.
  * Path format: "key1.key2[0].key3" where keys access map children and [index]
@@ -14,49 +72,64 @@
  *
  */
 confignode* confignode_path_lookup(confignode* node, const char* path, bool create) {
-	if (!node || !path) return NULL;
+	if (!node || !confignode_path_validate(path)) return NULL;
 	if (!path[0]) return node;
-	char *np, *nstr, *npath = NULL;
-	confignode* next = NULL;
-	size_t len = strlen(path);
-	if (!(np = strdup(path))) return NULL;
+	const char* next_path = NULL;
+	confignode* next;
 	if (path[0] == '[') {
-		size_t index = 0;
-		char* end = NULL;
-		if (!(nstr = memchr(np + 1, ']', len - 1)))
-			goto cleanup;
-		*nstr = 0, npath = nstr + 1;
-		long long temp = strtoll(np + 1, &end, 10);
-		if (temp < 0 || end != nstr) goto cleanup;
-		index = (size_t) temp;
-		if (node->type != CONFIGNODE_TYPE_ARRAY) {
-			if (!create || !node->parent) goto cleanup;
-			confignode_replace(&node, confignode_new_array());
-			if (node->type != CONFIGNODE_TYPE_ARRAY) goto cleanup;
+		const char* close = strchr(path + 1, ']');
+		size_t index;
+		if (!close || !confignode_path_parse_index(path + 1, close, &index))
+			return NULL;
+		next_path = close + 1;
+		if (*next_path == '.') {
+			next_path++;
+			if (!*next_path) return NULL;
 		}
-		if (!confignode_array_extend(node, index + 1)) goto cleanup;
-		if (!(next = confignode_array_get(node, index))) {
-			if (!create) goto cleanup;
-			next = confignode_new();
-			if (!confignode_array_set(node, index, next)) goto cleanup;
+		else if (*next_path && *next_path != '[') return NULL;
+		if (!*next_path) next_path = NULL;
+		if (!confignode_path_require_type(
+			&node, CONFIGNODE_TYPE_ARRAY, create
+		)) return NULL;
+		next = confignode_array_get(node, index);
+		if (!next) {
+			if (!create || index == SIZE_MAX) return NULL;
+			if (!confignode_array_extend(node, index + 1)) return NULL;
+			next = confignode_array_get(node, index);
+			if (!next) return NULL;
 		}
 	} else {
-		if ((nstr = strpbrk(np, ".["))) *nstr = 0, npath = nstr + 1;
-		if (node->type != CONFIGNODE_TYPE_MAP) {
-			if (!create || !node->parent) goto cleanup;
-			confignode_replace(&node, confignode_new_map());
-			if (node->type != CONFIGNODE_TYPE_MAP) goto cleanup;
+		const char* delim = strpbrk(path, ".[" );
+		size_t key_len = delim ? (size_t) (delim - path) : strlen(path);
+		if (key_len == 0) return NULL;
+		char* key = strndup(path, key_len);
+		if (!key) return NULL;
+		if (delim) {
+			next_path = *delim == '[' ? delim : delim + 1;
+			if (!*next_path) {
+				free(key);
+				return NULL;
+			}
 		}
-		if (!(next = confignode_map_get(node, np))) {
-			if (!create) goto cleanup;
+		if (!confignode_path_require_type(
+			&node, CONFIGNODE_TYPE_MAP, create
+		)) {
+			free(key);
+			return NULL;
+		}
+		next = confignode_map_get(node, key);
+		if (!next && create) {
 			next = confignode_new();
-			if (!confignode_map_set(node, np, next)) goto cleanup;
+			if (!next || !confignode_map_set(node, key, next)) {
+				if (next) confignode_clean(next);
+				next = NULL;
+			}
 		}
+		free(key);
+		if (!next) return NULL;
 	}
-	if (npath) next = confignode_path_lookup(next, npath, create);
-cleanup:
-	free(np);
-	return next;
+	return next_path ?
+		confignode_path_lookup(next, next_path, create) : next;
 }
 
 static void confignode_path_get_rec(confignode* node, char* buff, size_t size) {
@@ -105,10 +178,16 @@ bool confignode_path_get(confignode* node, char* buff, size_t size) {
 bool confignode_path_set_value(confignode* node, const char* path, const confignode_value* value) {
 	confignode* n = confignode_path_lookup(node, path, true);
 	if (!n) return false;
-	if (!value) return confignode_replace(&n, confignode_new());
-	return n->type == CONFIGNODE_TYPE_VALUE ?
-		confignode_value_set(n, value) :
-		confignode_replace(&n, confignode_new_value(value));
+	if (n->type == CONFIGNODE_TYPE_VALUE && value)
+		return confignode_value_set(n, value);
+	confignode* replacement = value ?
+		confignode_new_value(value) : confignode_new();
+	if (!replacement) return false;
+	if (!confignode_replace(&n, replacement)) {
+		confignode_clean(replacement);
+		return false;
+	}
+	return true;
 }
 
 /**

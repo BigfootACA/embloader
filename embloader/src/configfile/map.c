@@ -12,7 +12,7 @@
  *
  */
 confignode* confignode_map_get(confignode* node, const char* key) {
-	if (!node || node->type != CONFIGNODE_TYPE_MAP) return NULL;
+	if (!node || !key || node->type != CONFIGNODE_TYPE_MAP) return NULL;
 	list* p;
 	if ((p = list_first(node->items))) do {
 		LIST_DATA_DECLARE(n, p, confignode*);
@@ -50,22 +50,28 @@ confignode* confignode_new_map() {
 bool confignode_map_set(confignode* node, const char* key, confignode* sub) {
 	if (!node || !key || !sub || sub->parent) return false;
 	if (node->type != CONFIGNODE_TYPE_MAP) return false;
+	char* new_key = strdup(key);
+	if (!new_key) return false;
 	list* p;
-	bool found = false;
 	if ((p = list_first(node->items))) do {
 		LIST_DATA_DECLARE(n, p, confignode*);
-		if (!n || n->parent != node) continue;
+		if (!n || n->parent != node || !n->key) continue;
 		if (strcmp(key, n->key) != 0) continue;
-		confignode_clean(n);
+		if (sub->key) free(sub->key);
+		sub->key = new_key;
 		p->data = sub;
-		found = true;
-		break;
+		sub->parent = node;
+		n->parent = NULL;
+		confignode_clean(n);
+		return true;
 	} while ((p = p->next));
-	if (!found) {
-		int st = list_obj_add_new(&node->items, sub);
-		if (st != 0) return false;
+	int st = list_obj_add_new(&node->items, sub);
+	if (st != 0) {
+		free(new_key);
+		return false;
 	}
-	confignode_set_key(sub, key);
+	if (sub->key) free(sub->key);
+	sub->key = new_key;
 	sub->parent = node;
 	return true;
 }

@@ -125,9 +125,14 @@ bool confignode_array_extend(confignode* node, size_t nlen) {
 	if (!node || node->type != CONFIGNODE_TYPE_ARRAY) return false;
 	size_t len = confignode_array_len(node);
 	while (nlen > len) {
-		for (size_t i = len; i < nlen; i++)
-			if (!confignode_array_append(node, confignode_new()))
+		for (size_t i = len; i < nlen; i++) {
+			confignode* sub = confignode_new();
+			if (!sub) return false;
+			if (!confignode_array_append(node, sub)) {
+				confignode_clean(sub);
 				return false;
+			}
+		}
 		len = confignode_array_len(node);
 	}
 	configfile_array_fixup(node);

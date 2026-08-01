@@ -253,10 +253,14 @@ bool confignode_value_get_bool(confignode* node, bool def, bool* ok) {
  */
 confignode* confignode_new_value(const confignode_value* value) {
 	confignode* n;
+	if (!value) return NULL;
 	n = confignode_new();
 	if (!n) return NULL;
 	n->type = CONFIGNODE_TYPE_VALUE;
-	confignode_value_set(n, value);
+	if (!confignode_value_set(n, value)) {
+		confignode_clean(n);
+		return NULL;
+	}
 	return n;
 }
 
@@ -275,10 +279,13 @@ bool confignode_value_set(confignode* node, const confignode_value* value) {
 	if (!node || node->type != CONFIGNODE_TYPE_VALUE || !value)
 		return false;
 	if (value->type == VALUE_STRING && !value->v.s) return false;
+	confignode_value replacement = *value;
+	if (value->type == VALUE_STRING) {
+		replacement.v.s = strdup(value->v.s);
+		if (!replacement.v.s) return false;
+	}
 	if (node->value.type == VALUE_STRING && node->value.v.s)
 		free(node->value.v.s);
-	memcpy(&node->value, value, sizeof(confignode_value));
-	if (value->type == VALUE_STRING)
-		if (!(node->value.v.s = strdup(value->v.s))) return false;
+	node->value = replacement;
 	return true;
 }
