@@ -54,6 +54,7 @@ EFI_STATUS embloader_loader_boot(embloader_loader *loader) {
  * @return corresponding embloader_loader_type value, or LOADER_NONE if unknown
  */
 embloader_loader_type embloader_menu_get_loader_type(const char *type_str) {
+	if (!type_str) return LOADER_NONE;
 	for (int i = 0; embloader_loader_funcs[i].name; i++)
 		if (strcasecmp(type_str, embloader_loader_funcs[i].name) == 0)
 			return embloader_loader_funcs[i].type;

@@ -44,9 +44,43 @@ static bool menu_loader_compare(list *l, void *d) {
 	return el->extra == m;
 }
 
+static EFI_STATUS sdboot_boot_add_auto_item(
+	const char *name,
+	const char *title,
+	embloader_loader_type type,
+	const char *mode,
+	int64_t priority
+) {
+	embloader_loader loader;
+	memset(&loader, 0, sizeof(loader));
+	loader.name = strdup(name);
+	loader.title = strdup(title);
+	loader.type = type;
+	loader.priority = priority;
+	if (!loader.name || !loader.title) goto fail;
+	if (mode) {
+		loader.node = confignode_new_map();
+		if (
+			!loader.node ||
+			!confignode_path_set_string(loader.node, "mode", mode)
+		) goto fail;
+	}
+	if (list_obj_add_new_dup(
+		&g_embloader.menu->loaders, &loader, sizeof(loader)
+	) != 0) goto fail;
+	return EFI_SUCCESS;
+fail:
+	if (loader.node) confignode_clean(loader.node);
+	free(loader.title);
+	free(loader.name);
+	return EFI_OUT_OF_RESOURCES;
+}
+
 static EFI_STATUS sdboot_boot_add_auto_items() {
 	list *p;
-	int offset = 0;
+	int64_t offset = 0;
+	EFI_STATUS status;
+	if (!g_embloader.menu || !g_embloader.sdboot) return EFI_NOT_READY;
 	bool auto_firmware = g_embloader.sdboot->menu.auto_firmware;
 	bool auto_reboot = g_embloader.sdboot->menu.auto_reboot;
 	bool auto_poweroff = g_embloader.sdboot->menu.auto_poweroff;
@@ -56,37 +90,33 @@ static EFI_STATUS sdboot_boot_add_auto_items() {
 		if (auto_firmware && item->type == LOADER_EFISETUP) auto_firmware = false;
 		if (auto_reboot && embloader_loader_is_reboot(item)) auto_reboot = false;
 		if (auto_poweroff && embloader_loader_is_shutdown(item)) auto_poweroff = false;
-		if (item->type == LOADER_SDBOOT)
-			offset = MAX(offset, item->priority + 1);
+		if (item->type == LOADER_SDBOOT && item->priority >= offset) {
+			offset = item->priority;
+			if (offset < INT64_MAX) offset++;
+		}
 	} while ((p = p->next));
-	embloader_loader loader;
 	if (auto_firmware) {
-		memset(&loader, 0, sizeof(embloader_loader));
-		loader.name = strdup("sdboot-auto-firmware");
-		loader.title = strdup("Reboot Into Firmware Interface");
-		loader.type = LOADER_EFISETUP;
-		loader.priority = offset++;
-		list_obj_add_new_dup(&g_embloader.menu->loaders, &loader, sizeof(loader));
+		status = sdboot_boot_add_auto_item(
+			"sdboot-auto-firmware", "Reboot Into Firmware Interface",
+			LOADER_EFISETUP, NULL, offset
+		);
+		if (EFI_ERROR(status)) return status;
+		if (offset < INT64_MAX) offset++;
 	}
 	if (auto_poweroff) {
-		memset(&loader, 0, sizeof(embloader_loader));
-		loader.name = strdup("sdboot-auto-shutdown");
-		loader.title = strdup("Shut Down The System");
-		loader.type = LOADER_REBOOT;
-		loader.priority = offset++;
-		loader.node = confignode_new_map();
-		confignode_path_set_string(loader.node, "action", "shutdown");
-		list_obj_add_new_dup(&g_embloader.menu->loaders, &loader, sizeof(loader));
+		status = sdboot_boot_add_auto_item(
+			"sdboot-auto-shutdown", "Shut Down The System",
+			LOADER_REBOOT, "shutdown", offset
+		);
+		if (EFI_ERROR(status)) return status;
+		if (offset < INT64_MAX) offset++;
 	}
 	if (auto_reboot) {
-		memset(&loader, 0, sizeof(embloader_loader));
-		loader.name = strdup("sdboot-auto-poweroff");
-		loader.title = strdup("Reboot The System");
-		loader.type = LOADER_REBOOT;
-		loader.priority = offset++;
-		loader.node = confignode_new_map();
-		confignode_path_set_string(loader.node, "action", "reboot");
-		list_obj_add_new_dup(&g_embloader.menu->loaders, &loader, sizeof(loader));
+		status = sdboot_boot_add_auto_item(
+			"sdboot-auto-reboot", "Reboot The System",
+			LOADER_REBOOT, "reboot", offset
+		);
+		if (EFI_ERROR(status)) return status;
 	}
 	return EFI_SUCCESS;
 }
@@ -118,35 +148,40 @@ static int sdboot_compare_entries(embloader_loader *a, embloader_loader *b) {
 	return 0;
 }
 
-static void sdboot_items_sort() {
+static EFI_STATUS sdboot_items_sort() {
 	list *p;
-	int sdboot_offset = confignode_path_get_int(
+	int64_t sdboot_offset = confignode_path_get_int(
 		g_embloader.config, "menu.sdboot.priority-offset", 100, NULL
 	);
 	list *items = NULL;
 	if ((p = list_first(g_embloader.menu->loaders))) do {
 		LIST_DATA_DECLARE(item, p, embloader_loader*);
 		if (!item || item->type != LOADER_SDBOOT) continue;
-		list_obj_add_new(&items, item);
+		if (list_obj_add_new(&items, item) != 0) {
+			list_free_all(items, NULL);
+			return EFI_OUT_OF_RESOURCES;
+		}
 	} while ((p = p->next));
 	list *pa, *pb;
 	if ((pa = list_first(items))) do {
 		LIST_DATA_DECLARE(item_a, pa, embloader_loader*);
 		if (!item_a) continue;
-		int priority = sdboot_offset;
+		int64_t priority = sdboot_offset;
 		if ((pb = list_first(items))) do {
 			LIST_DATA_DECLARE(item_b, pb, embloader_loader*);
 			if (!item_b || item_a == item_b) continue;
 			int cmp = sdboot_compare_entries(item_a, item_b);
-			if (cmp > 0) priority++;
+			if (cmp > 0 && priority < INT64_MAX) priority++;
 		} while ((pb = pb->next));
 		item_a->priority = priority;
 	} while ((pa = pa->next));
 	list_free_all(items, NULL);
+	return EFI_SUCCESS;
 }
 
 static EFI_STATUS sdboot_boot_add_items() {
 	list *p;
+	EFI_STATUS status;
 	if (!g_embloader.menu || !g_embloader.sdboot) return EFI_NOT_READY;
 	if ((p = list_first(g_embloader.sdboot->loaders))) do {
 		LIST_DATA_DECLARE(item, p, sdboot_boot_loader*);
@@ -156,21 +191,38 @@ static EFI_STATUS sdboot_boot_add_items() {
 		)) continue;
 		embloader_loader *loader;
 		loader = malloc(sizeof(embloader_loader));
-		if (!loader) continue;
+		if (!loader) return EFI_OUT_OF_RESOURCES;
 		memset(loader, 0, sizeof(embloader_loader));
 		loader->name = item->name ? strdup(item->name) : NULL;
 		loader->title = item->title ? strdup(item->title) : NULL;
+		if (
+			(item->name && !loader->name) ||
+			(item->title && !loader->title)
+		) {
+			free(loader->title);
+			free(loader->name);
+			free(loader);
+			return EFI_OUT_OF_RESOURCES;
+		}
 		loader->type = LOADER_SDBOOT;
 		loader->complete = true;
 		loader->editor = g_embloader.sdboot->menu.editor;
 		loader->extra = item;
-		item->item = loader;
 		if (item->options)
 			loader->bootargs = list_to_string(item->options, " ");
-		list_obj_add_new(&g_embloader.menu->loaders, loader);
+		if (list_obj_add_new(&g_embloader.menu->loaders, loader) != 0) {
+			free(loader->bootargs);
+			free(loader->title);
+			free(loader->name);
+			free(loader);
+			return EFI_OUT_OF_RESOURCES;
+		}
+		item->item = loader;
 	} while ((p = p->next));
-	sdboot_items_sort();
-	sdboot_boot_add_auto_items();
+	status = sdboot_items_sort();
+	if (EFI_ERROR(status)) return status;
+	status = sdboot_boot_add_auto_items();
+	if (EFI_ERROR(status)) return status;
 	embloader_sort_menu_loaders();
 	return EFI_SUCCESS;
 }

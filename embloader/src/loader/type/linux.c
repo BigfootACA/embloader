@@ -13,7 +13,12 @@ EFI_STATUS embloader_loader_boot_linux(embloader_loader* loader) {
 		log_error("failed to parse Linux boot information");
 		return EFI_LOAD_ERROR;
 	}
-	info->bootargs_override = linux_bootinfo_prepare_bootargs(info);
+	info->bootargs_override = linux_prepare_bootargs_string(loader->bootargs);
+	if (!info->bootargs_override) {
+		linux_bootinfo_clean(info);
+		log_error("failed to prepare Linux boot arguments");
+		return EFI_OUT_OF_RESOURCES;
+	}
 	info->root = g_embloader.dir.root;
 	linux_data* data = linux_data_load(info);
 	linux_bootinfo_clean(info);

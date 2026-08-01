@@ -27,7 +27,6 @@ static void show_ask_editor(embloader_loader *item, uint64_t *flags) {
 		printf("Invalid choice '%s'\n", edit_input);
 		fflush(stdout);
 	}
-	if (flags) *flags |= EMBLOADER_FLAG_EDITED;
 	if (!(buffer = malloc(16384))) return;
 	memset(buffer, 0, 16384);
 	if (item->bootargs && item->bootargs[0])
@@ -44,6 +43,7 @@ static void show_ask_editor(embloader_loader *item, uint64_t *flags) {
 	}
 	if (item->bootargs) free(item->bootargs);
 	item->bootargs = buffer;
+	if (flags) *flags |= EMBLOADER_FLAG_EDITED;
 }
 
 /**

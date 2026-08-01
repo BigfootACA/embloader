@@ -328,8 +328,14 @@ static void show_editor_dialog(struct tui_context *ctx, embloader_loader *item) 
 			key.UnicodeChar == CHAR_LINEFEED ||
 			key.UnicodeChar == CHAR_CARRIAGE_RETURN
 		) {
+			char *edited = strdup(buffer);
+			if (!edited) {
+				log_error("failed to save edited boot arguments");
+				done = true;
+				continue;
+			}
 			if (item->bootargs) free(item->bootargs);
-			item->bootargs = strdup(buffer);
+			item->bootargs = edited;
 			ctx->flags |= EMBLOADER_FLAG_USERSELECT;
 			ctx->flags |= EMBLOADER_FLAG_EDITED;
 			*ctx->selected = item;

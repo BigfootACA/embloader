@@ -52,6 +52,23 @@ char* linux_prepare_bootargs(list *def_bootargs) {
 }
 
 /**
+ * @brief Prepare boot arguments using an editable entry-specific string
+ *
+ * @param def_bootargs Entry-specific boot arguments, or NULL
+ * @return Newly allocated combined boot arguments, or NULL on allocation failure
+ */
+char* linux_prepare_bootargs_string(const char *def_bootargs) {
+	list *bootargs = NULL;
+	if (def_bootargs) {
+		bootargs = list_new_strdup(def_bootargs);
+		if (!bootargs) return NULL;
+	}
+	char *result = linux_prepare_bootargs(bootargs);
+	if (bootargs) list_free_all_def(bootargs);
+	return result;
+}
+
+/**
  * @brief Prepare boot arguments string for Linux kernel from bootinfo structure
  *
  * This is a convenience wrapper around linux_prepare_bootargs() that extracts

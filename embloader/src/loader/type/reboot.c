@@ -11,15 +11,17 @@
  * @return true if the loader, false otherwise
  */
 bool embloader_loader_is_reboot(embloader_loader *loader) {
-	if (!loader || !loader->node) return false;
-	char *type = confignode_path_get_string(loader->node, "type", NULL, NULL);
-	if (!type) return false;
+	if (!loader || loader->type != LOADER_REBOOT || !loader->node) return false;
+	char *mode = confignode_path_get_string(
+		loader->node, "mode", "reboot", NULL
+	);
+	if (!mode) return false;
 	bool ret = false;
-	if (strcasecmp(type, "reboot") == 0) ret = true;
-	else if (strcasecmp(type, "reboot-cold") == 0) ret = true;
-	else if (strcasecmp(type, "reboot-warm") == 0) ret = true;
-	else if (strcasecmp(type, "reboot-with") == 0) ret = true;
-	free(type);
+	if (strcasecmp(mode, "reboot") == 0) ret = true;
+	else if (strcasecmp(mode, "reboot-cold") == 0) ret = true;
+	else if (strcasecmp(mode, "reboot-warm") == 0) ret = true;
+	else if (strcasecmp(mode, "reboot-with") == 0) ret = true;
+	free(mode);
 	return ret;
 }
 
@@ -30,13 +32,15 @@ bool embloader_loader_is_reboot(embloader_loader *loader) {
  * @return true if the loader, false otherwise
  */
 bool embloader_loader_is_shutdown(embloader_loader *loader) {
-	if (!loader || !loader->node) return false;
-	char *type = confignode_path_get_string(loader->node, "type", NULL, NULL);
-	if (!type) return false;
+	if (!loader || loader->type != LOADER_REBOOT || !loader->node) return false;
+	char *mode = confignode_path_get_string(
+		loader->node, "mode", "reboot", NULL
+	);
+	if (!mode) return false;
 	bool ret = false;
-	if (strcasecmp(type, "shutdown") == 0) ret = true;
-	else if (strcasecmp(type, "poweroff") == 0) ret = true;
-	free(type);
+	if (strcasecmp(mode, "shutdown") == 0) ret = true;
+	else if (strcasecmp(mode, "poweroff") == 0) ret = true;
+	free(mode);
 	return ret;
 }
 

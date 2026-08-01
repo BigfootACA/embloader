@@ -123,7 +123,13 @@ static bool is_class_type(
 	lv_obj_t *obj,
 	const lv_obj_class_t *cls
 ) {
-	if (lv_obj_has_class(obj, cls)) return true;
+	if (!ctx || !cls) return false;
+	if (obj && lv_obj_has_class(obj, cls)) return true;
+	if (!obj) {
+		log_warning("object is null, expected class %s", cls->name);
+		ctx->running = false;
+		return false;
+	}
 	const char *name =lv_obj_get_name(obj);
 	if (!name) log_warning("object %p is not of class %s", obj, cls->name);
 	else log_warning("object %s is not of class %s", name, cls->name);
@@ -131,8 +137,22 @@ static bool is_class_type(
 	return false;
 }
 
+static embloader_loader *get_default_loader(void) {
+	embloader_loader *loader = embloader_find_loader(
+		g_embloader.menu->default_entry
+	);
+	if (loader) return loader;
+	list *p;
+	if ((p = list_first(g_embloader.menu->loaders))) do {
+		LIST_DATA_DECLARE(item, p, embloader_loader*);
+		if (item) return item;
+	} while ((p = p->next));
+	return NULL;
+}
+
 static void update_fields(struct gui_menu_ctx *ctx) {
 	embloader_menu *menu = g_embloader.menu;
+	embloader_loader *loader = get_default_loader();
 	if (ctx->box_menu) lv_obj_set_flag(
 		ctx->box_menu,
 		LV_OBJ_FLAG_HIDDEN,
@@ -151,7 +171,7 @@ static void update_fields(struct gui_menu_ctx *ctx) {
 	if (ctx->box_default) lv_obj_set_flag(
 		ctx->box_default,
 		LV_OBJ_FLAG_HIDDEN,
-		menu->default_entry == NULL
+		loader == NULL
 	);
 	if (ctx->lbl_menu) lv_label_set_text(
 		ctx->lbl_menu,
@@ -165,7 +185,6 @@ static void update_fields(struct gui_menu_ctx *ctx) {
 		ctx->lbl_device,
 		g_embloader.device_name ?: ""
 	);
-	embloader_loader *loader = embloader_find_loader(menu->default_entry);
 	if (ctx->lbl_default && loader) lv_label_set_text(
 		ctx->lbl_default,
 		loader->title ?: (loader->name ?: menu->default_entry)
@@ -266,8 +285,8 @@ static void timer_cb(lv_timer_t *timer) {
 	printf_serial(ctx, "Timeout: %d seconds\r\n", ctx->timeout);
 	update_fields(ctx);
 	if (ctx->timeout > 0) return;
-	embloader_loader *loader;
-	if ((loader = embloader_find_loader(g_embloader.menu->default_entry))) {
+	embloader_loader *loader = get_default_loader();
+	if (loader) {
 		printf_serial(
 			ctx, "Auto selected entry %s (%s)\r\n",
 			loader->title ?: "null",
@@ -354,17 +373,18 @@ static bool draw_menu_item(
 		log_warning("failed to create menu-item");
 		goto fail;
 	}
+	if (list_obj_add_new(&ctx->items, item) != 0) {
+		log_warning("failed to track menu-item");
+		goto fail;
+	}
 	lv_group_add_obj(ctx->group, item->menu);
-	if (g_embloader.menu->default_entry && strcmp(
-		loader->name, g_embloader.menu->default_entry
-	) == 0) {
+	if (loader == get_default_loader()) {
 		lv_obj_add_state(item->menu, LV_STATE_CHECKED);
 		*(ctx->selected) = loader;
 		if (ctx->btn_boot) lv_obj_set_state(ctx->btn_boot, LV_STATE_DISABLED, false);
 		lv_group_focus_obj(item->menu);
 	}
 	lv_obj_add_event_cb(item->menu, item_event_cb, LV_EVENT_ALL, item);
-	list_obj_add_new(&ctx->items, item);
 	printf_serial(
 		ctx, "Entry %d. %s (%s)\r\n",
 		index,
@@ -373,7 +393,10 @@ static bool draw_menu_item(
 	);
 	return true;
 fail:
-	if (item) free(item);
+	if (item) {
+		if (item->menu) lv_obj_delete(item->menu);
+		free(item);
+	}
 	return false;
 }
 
@@ -496,7 +519,7 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected, uint64_t *flags
 	if (!load_xml_from("menu-item", "menu.gui.xml-item", "menu-item.xml")) goto done;
 	if (!draw_menu_main(&ctx)) goto done;
 	if (!draw_menu_items(&ctx)) goto done;
-	if (ctx.timeout >= 0 && g_embloader.menu->default_entry)
+	if (ctx.timeout >= 0 && get_default_loader())
 		ctx.timer = lv_timer_create(timer_cb, 1000, &ctx);
 	while (ctx.running) {
 		gBS->Stall(10000);
@@ -506,6 +529,7 @@ EFI_STATUS embloader_gui_menu_start(embloader_loader **selected, uint64_t *flags
 done:
 	if (flags) *flags = ctx.flags;
 	lv_deinit();
+	if (ctx.items) list_free_all_def(ctx.items);
 	set_graphics_mode(false);
 	memset(&px, 0, sizeof(px));
 	ctx.gop->Blt(

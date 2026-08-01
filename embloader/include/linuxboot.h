@@ -53,6 +53,7 @@ extern bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, 
 extern int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error);
 extern bool linux_dtbo_write_overrides(fdt fdt, confignode *overrides);
 extern char* linux_prepare_bootargs(list *def_bootargs);
+extern char* linux_prepare_bootargs_string(const char *def_bootargs);
 extern char* linux_bootinfo_prepare_bootargs(linux_bootinfo *info);
 extern EFI_STATUS linux_load_kernel(linux_data *data, linux_bootinfo *info);
 extern EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info);
