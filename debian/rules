@@ -1,21 +1,25 @@
 #!/usr/bin/make -f
-ARCH ?= $(shell $(CC) -dumpmachine | cut -d- -f1)
+.NOTPARALLEL:
+
+DEB_HOST_ARCH ?= $(shell dpkg-architecture -qDEB_HOST_ARCH)
 EDK2_PATH = $(realpath edk2)
 EDK2_TARGET = RELEASE
 EDK2_TOOLCHAIN = GCC5
-ifeq ($(ARCH),x86_64)
+ifeq ($(DEB_HOST_ARCH),amd64)
+	ARCH = x86_64
 	EDK2_ARCH = X64
-else ifeq ($(ARCH),aarch64)
+else ifeq ($(DEB_HOST_ARCH),arm64)
+	ARCH = aarch64
 	EDK2_ARCH = AARCH64
-else ifeq ($(ARCH),riscv64)
+else ifeq ($(DEB_HOST_ARCH),riscv64)
+	ARCH = riscv64
 	EDK2_ARCH = RISCV64
-else ifeq ($(ARCH),i386)
+else ifeq ($(DEB_HOST_ARCH),i386)
+	ARCH = i686
 	EDK2_ARCH = IA32
-else
-$(error Unsupported architecture: $(ARCH))
 endif
 
-export EDK2_PATH EDK2_TARGET EDK2_TOOLCHAIN EDK2_ARCH
+export ARCH EDK2_PATH EDK2_TARGET EDK2_TOOLCHAIN EDK2_ARCH
 
 %:
 	dh $@ --no-auto
@@ -27,7 +31,13 @@ clean:
 
 build: build-arch build-indep
 
-build-arch:
+check-architecture:
+	@if [ -z "$(EDK2_ARCH)" ]; then \
+		echo "Unsupported Debian architecture: $(DEB_HOST_ARCH)" >&2; \
+		exit 1; \
+	fi
+
+build-arch: check-architecture
 	dh_testdir
 	if [ -d build ]; then \
 		find build -name '*.efi' -delete || true; \
@@ -39,10 +49,10 @@ build-indep:
 
 binary: binary-arch binary-indep
 
-binary-arch:
+binary-arch: check-architecture
 	dh_testdir
 	dh_testroot
-	dh_prep
+	dh_prep -pembloader
 	install -Dm644 build/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/$(EDK2_ARCH)/embloader.efi \
 		debian/embloader/usr/share/embloader/embloader.efi
 	install -Dm644 build/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/$(EDK2_ARCH)/embloader.debug \
@@ -53,18 +63,29 @@ binary-arch:
 	cp -a configs/* debian/embloader/usr/share/embloader/configs/
 	if [ -f README.md ]; then install -m644 README.md debian/embloader/usr/share/doc/embloader/; fi
 	if [ -f LICENSE ]; then install -m644 LICENSE debian/embloader/usr/share/doc/embloader/; fi
-	dh_installdocs
-	dh_installchangelogs
-	dh_compress
-	dh_fixperms
-	dh_strip --exclude=embloader.debug --exclude=*.debug
-	dh_makeshlibs
-	dh_shlibdeps
-	dh_installdeb
-	dh_gencontrol
-	dh_md5sums
-	dh_builddeb
+	dh_installdocs -pembloader
+	dh_installchangelogs -pembloader
+	dh_compress -pembloader
+	dh_fixperms -pembloader
+	dh_strip -pembloader --exclude=embloader.debug --exclude=*.debug
+	dh_makeshlibs -pembloader
+	dh_shlibdeps -pembloader
+	dh_installdeb -pembloader
+	dh_gencontrol -pembloader
+	dh_md5sums -pembloader
+	dh_builddeb -pembloader
+	dh_testdir
+	dh_testroot
+	dh_prep -psdboot-is-embloader
+	dh_installdocs -psdboot-is-embloader
+	dh_installchangelogs -psdboot-is-embloader
+	dh_compress -psdboot-is-embloader
+	dh_fixperms -psdboot-is-embloader
+	dh_installdeb -psdboot-is-embloader
+	dh_gencontrol -psdboot-is-embloader
+	dh_md5sums -psdboot-is-embloader
+	dh_builddeb -psdboot-is-embloader
 
 binary-indep:
 
-.PHONY: clean build build-arch build-indep binary binary-arch binary-indep
+.PHONY: clean check-architecture build build-arch build-indep binary binary-arch binary-indep

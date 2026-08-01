@@ -17,17 +17,17 @@ Vcs-Git: https://github.com/BigfootACA/embloader.git
 Vcs-Browser: https://github.com/BigfootACA/embloader
 
 Package: embloader
-Architecture: any
+Architecture: amd64 arm64 i386 riscv64
 Depends: ${shlibs:Depends}, ${misc:Depends}
 Description: Embedded Bootloader
  embloader is a modern multi-platform unified boot loader that supports
- various architectures including x86_64, aarch64, riscv64, and others.
+ x86_64, aarch64, IA-32, and riscv64.
  It provides a flexible configuration system for device detection,
  boot menu management, and supports Linux kernel loading with device
  tree overlays.
  .
  Features include:
-  - Multi-architecture support (x86_64, ARM64, RISC-V, etc.)
+  - Multi-architecture support (x86-64, AArch64, IA-32, and RISC-V 64)
   - systemd-boot / UAPI Boot Loader Specification support
   - SMBIOS-based device detection
   - Device tree and overlay support
@@ -36,7 +36,7 @@ Description: Embedded Bootloader
   - Initramfs loading
 
 Package: sdboot-is-embloader
-Architecture: all
+Architecture: amd64 arm64 i386 riscv64
 Depends: embloader (= ${binary:Version}),
          systemd-boot,
          ${misc:Depends}
