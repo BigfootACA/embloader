@@ -55,10 +55,10 @@ int list_insert(list* point, list* new) {
 	if (!point->prev) point->prev = l, l->next = point;
 	else {
 		if (!(f = list_first(new))) return -errno;
-		point->prev->next = l;
-		l->prev = point->prev;
-		point->prev = f;
-		f->next = point;
+		point->prev->next = f;
+		f->prev = point->prev;
+		point->prev = l;
+		l->next = point;
 	}
 	ERET(0);
 }
