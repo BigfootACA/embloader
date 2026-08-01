@@ -6,6 +6,7 @@
 #include <Library/PrintLib.h>
 #include <Library/BaseLib.h>
 #include <Library/BaseMemoryLib.h>
+#include <Library/DevicePathLib.h>
 #include <Protocol/ComponentName.h>
 #include <Protocol/DevicePath.h>
 #include <Protocol/SimpleTextIn.h>
@@ -781,7 +782,7 @@ static bool is_bad_simple_text_out() {
 		);
 		if (EFI_ERROR(status) || !dp) continue;
 		do {
-			UINT16 len = *(UINT16*) dp->Length;
+			UINTN len = DevicePathNodeLength(dp);
 			if (len < sizeof(EFI_DEVICE_PATH_PROTOCOL)) break;
 			if (
 				dp->Type == HARDWARE_DEVICE_PATH &&
@@ -796,8 +797,9 @@ static bool is_bad_simple_text_out() {
 				bad = EFI_ERROR(status) || !ptr;
 				goto out;
 			}
-			if (dp->Type == END_DEVICE_PATH_TYPE) break;
-			dp = (EFI_DEVICE_PATH_PROTOCOL*)((UINT8*)dp + len);
+			if (IsDevicePathEndType(dp)) break;
+			dp = efi_device_path_next(dp);
+			if (!dp) break;
 		} while (true);
 	}
 out:

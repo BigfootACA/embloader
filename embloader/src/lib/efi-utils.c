@@ -36,29 +36,37 @@ EFI_HANDLE efi_get_current_device(void) {
 }
 
 EFI_DEVICE_PATH_PROTOCOL* efi_device_path_next(EFI_DEVICE_PATH_PROTOCOL* dp) {
-	if (!dp || dp->Length == 0) return NULL;
-	EFI_DEVICE_PATH_PROTOCOL* next_dp =
-		(void*) dp + *(UINT16*) dp->Length;
-	if (next_dp->Length == 0) return NULL;
+	if (!dp) return NULL;
+	UINTN length = DevicePathNodeLength(dp);
+	if (length < sizeof(*dp) || IsDevicePathEndType(dp)) return NULL;
+	if ((UINTN)dp > MAX_UINTN - length) return NULL;
+	EFI_DEVICE_PATH_PROTOCOL* next_dp = NextDevicePathNode(dp);
+	if (DevicePathNodeLength(next_dp) < sizeof(*next_dp)) return NULL;
 	return next_dp;
 }
 
 size_t efi_device_path_len(EFI_DEVICE_PATH_PROTOCOL* dp) {
 	size_t dp_len = 0;
-	if (dp) do {
-		dp_len += *(UINT16*) dp->Length;
-		if (dp->Type == 0x7f) break;
-	} while ((dp = efi_device_path_next(dp)));
-	return dp_len;
+	while (dp) {
+		UINTN length = DevicePathNodeLength(dp);
+		if (length < sizeof(*dp) || length > SIZE_MAX - dp_len) return 0;
+		dp_len += length;
+		if (IsDevicePathEndType(dp)) return dp_len;
+		dp = efi_device_path_next(dp);
+	}
+	return 0;
 }
 
 size_t efi_device_path_count(EFI_DEVICE_PATH_PROTOCOL* dp) {
 	size_t cnt = 0;
-	if (dp) do {
-		if (dp->Type == 0x7f) break;
+	while (dp) {
+		if (DevicePathNodeLength(dp) < sizeof(*dp)) return 0;
+		if (IsDevicePathEndType(dp)) return cnt;
+		if (cnt == SIZE_MAX) return 0;
 		cnt++;
-	} while ((dp = efi_device_path_next(dp)));
-	return cnt;
+		dp = efi_device_path_next(dp);
+	}
+	return 0;
 }
 
 EFI_HANDLE efi_get_parent_device(EFI_HANDLE handle) {
@@ -78,10 +86,12 @@ EFI_HANDLE efi_get_parent_device(EFI_HANDLE handle) {
 	last_dp = par_dp;
 	while (true) {
 		next_dp = efi_device_path_next(last_dp);
-		if (!next_dp || next_dp->Type == 0x7f) {
-			last_dp->Type = 0x7f;
-			last_dp->SubType = 0xff;
-			*((UINT16*) last_dp->Length) = sizeof(EFI_DEVICE_PATH_PROTOCOL);
+		if (!next_dp) {
+			free(par_dp);
+			return NULL;
+		}
+		if (IsDevicePathEndType(next_dp)) {
+			SetDevicePathEndNode(last_dp);
 			break;
 		}
 		last_dp = next_dp;
