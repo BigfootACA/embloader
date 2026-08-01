@@ -86,6 +86,38 @@ static const char *apply_specifier(log_item *item, char spec, char *num_buf, siz
 	return NULL;
 }
 
+static bool append_value(
+	char **result,
+	size_t *cap,
+	size_t *len,
+	const char *value,
+	size_t value_len
+) {
+	char *tmp;
+	size_t required, new_cap;
+	if (!result || !*result || !cap || !len || (!value && value_len > 0))
+		return false;
+	if (value_len >= SIZE_MAX - *len) return false;
+	required = *len + value_len + 1;
+	if (required > *cap) {
+		new_cap = *cap;
+		while (new_cap < required) {
+			if (new_cap > SIZE_MAX / 2) {
+				new_cap = required;
+				break;
+			}
+			new_cap *= 2;
+		}
+		if (!(tmp = realloc(*result, new_cap))) return false;
+		*result = tmp;
+		*cap = new_cap;
+	}
+	if (value_len > 0) memcpy(*result + *len, value, value_len);
+	*len += value_len;
+	(*result)[*len] = 0;
+	return true;
+}
+
 /**
  * @brief Format a log item into a string using a printf-like format specifier.
  * Supported format specifiers:
@@ -107,7 +139,7 @@ static const char *apply_specifier(log_item *item, char spec, char *num_buf, siz
  */
 char* log_formatter(log_item *item, const char *format, int crlf) {
 	size_t cap = 256, len = 0, vlen;
-	char *result, *tmp, num_buf[32];
+	char *result, num_buf[32];
 	const char *p, *value;
 	if (!item) return NULL;
 	if (!format) format = DEFAULT_LOG_FORMAT;
@@ -123,34 +155,16 @@ char* log_formatter(log_item *item, const char *format, int crlf) {
 			value = num_buf;
 		}
 		vlen = strlen(value);
-		while (len + vlen >= cap) {
-			cap *= 2;
-			if (!(tmp = realloc(result, cap))) goto fail;
-			result = tmp;
-		}
-		memcpy(result + len, value, vlen);
-		len += vlen;
-		result[len] = 0;
+		if (!append_value(&result, &cap, &len, value, vlen)) goto fail;
 		p++;
 	} else {
-		if (len + 1 >= cap) {
-			cap *= 2;
-			if (!(tmp = realloc(result, cap))) goto fail;
-			result = tmp;
-		}
-		result[len++] = *p++;
-		result[len] = 0;
+		if (!append_value(&result, &cap, &len, p, 1)) goto fail;
+		p++;
 	}
 	if (crlf > 0) {
-		if (len + 2 >= cap) {
-			cap += 2;
-			if (!(tmp = realloc(result, cap))) goto fail;
-			result = tmp;
-		}
-		if (crlf > 1)
-			result[len++] = '\r';
-		result[len++] = '\n';
-		result[len] = 0;
+		value = crlf > 1 ? "\r\n" : "\n";
+		vlen = crlf > 1 ? 2 : 1;
+		if (!append_value(&result, &cap, &len, value, vlen)) goto fail;
 	}
 	return result;
 fail:

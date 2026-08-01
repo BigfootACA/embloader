@@ -65,13 +65,22 @@ log_item* log_item_create(
 	const char *content
 ) {
 	size_t tag_len = 0, file_len = 0, function_len = 0, content_len = 0;
-	size_t total_len, cur_off = 0;
+	size_t total_len = sizeof(log_item), cur_off = 0;
 	if (!content) return NULL;
 	if (tag) tag_len = strlen(tag);
 	if (file) file_len = strlen(file);
 	if (function) function_len = strlen(function);
-	if (content) content_len = strlen(content);
-	total_len = sizeof(log_item) + tag_len + file_len + function_len + content_len + 4;
+	content_len = strlen(content);
+	if (tag_len > SIZE_MAX - total_len) return NULL;
+	total_len += tag_len;
+	if (file_len > SIZE_MAX - total_len) return NULL;
+	total_len += file_len;
+	if (function_len > SIZE_MAX - total_len) return NULL;
+	total_len += function_len;
+	if (content_len > SIZE_MAX - total_len) return NULL;
+	total_len += content_len;
+	if (total_len > SIZE_MAX - 4) return NULL;
+	total_len += 4;
 	if (total_len >= UINT32_MAX) return NULL;
 	log_item *item = malloc(total_len);
 	if (!item) return NULL;
@@ -98,7 +107,6 @@ log_item* log_item_create(
 	if (content) {
 		item->content = &item->data[cur_off];
 		memcpy(&item->data[cur_off], content, content_len);
-		cur_off += content_len + 1;
 	}
 	return item;
 }

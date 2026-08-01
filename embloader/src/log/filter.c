@@ -75,7 +75,10 @@ bool log_check_filter(log_item *item, confignode *config) {
 	if (confignode_path_lookup(config, "line", false)) {
 		char buff[1024];
 		memset(buff, 0, sizeof(buff));
-		snprintf(buff, sizeof(buff) - 1, "%s:%d", item->file, item->lineno);
+		snprintf(
+			buff, sizeof(buff) - 1, "%s:%d",
+			item->file ? item->file : "(null)", item->lineno
+		);
 		if (!log_check_regex_filter(buff, confignode_path_lookup(config, "line", false)))
 			return false;
 	}

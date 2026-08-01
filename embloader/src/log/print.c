@@ -52,6 +52,7 @@ void log_base_vprintf(
 	va_list args
 ) {
 	char *ptr = NULL;
+	if (!fmt) return;
 	if (vasprintf(&ptr, fmt, args) < 0) return;
 	log_base_print(level, tag, file, function, lineno, ptr);
 	free(ptr);
