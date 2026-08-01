@@ -38,5 +38,19 @@ else
 fi
 EDK2_PATH="$(realpath edk2)"
 export EDK2_PATH
-jobs="$(nproc)"
-make -j "$jobs" build-edk2
+make_args=()
+jobs="${EMBLOADER_JOBS:-}"
+if [[ -z "$jobs" && " ${DEB_BUILD_OPTIONS:-} " =~ [[:space:]]parallel=([0-9]+)[[:space:]] ]]; then
+	jobs=${BASH_REMATCH[1]}
+fi
+if [[ -n "$jobs" ]]; then
+	if [[ ! "$jobs" =~ ^[1-9][0-9]*$ ]]; then
+		echo "Invalid build parallelism: $jobs" >&2
+		exit 1
+	fi
+	make_args=(-j "$jobs")
+elif [[ "${MAKEFLAGS:-}" != *-j* && "${MAKEFLAGS:-}" != *--jobs* && \
+		"${MAKEFLAGS:-}" != *jobserver* ]]; then
+	make_args=(-j "$(nproc)")
+fi
+make "${make_args[@]}" build-edk2
