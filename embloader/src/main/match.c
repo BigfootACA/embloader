@@ -7,31 +7,7 @@
 #include "debugs.h"
 #include "regexp.h"
 #include "log.h"
-
-static int compare_versions(const char *v1, const char *v2) {
-	char *s1 = strdup(v1), *s2 = strdup(v2);
-	char *saveptr1, *saveptr2;
-	char *token1 = strtok_r(s1, ".", &saveptr1);
-	char *token2 = strtok_r(s2, ".", &saveptr2);
-	int result = 0;
-	while (token1 && token2) {
-		int n1 = atoi(token1);
-		int n2 = atoi(token2);
-		if (n1 != n2) {
-			result = (n1 > n2) ? 1 : -1;
-			break;
-		}
-		token1 = strtok_r(NULL, ".", &saveptr1);
-		token2 = strtok_r(NULL, ".", &saveptr2);
-	}
-	if (result == 0) {
-		if (token1) result = 1;
-		else if (token2) result = -1;
-	}
-	free(s1);
-	free(s2);
-	return result;
-}
+#include "str-utils.h"
 
 bool embloader_try_match(confignode *node) {
 	char *field_value = NULL;
@@ -75,9 +51,9 @@ bool embloader_try_match(confignode *node) {
 	} else if (strcasecmp(oper, "less-equals") == 0) {
 		match = (strcasecmp(field_value, value) <= 0);
 	} else if (strcasecmp(oper, "older") == 0) {
-		match = (compare_versions(field_value, value) < 0);
+		match = (vercmp(field_value, value) < 0);
 	} else if (strcasecmp(oper, "newer") == 0) {
-		match = (compare_versions(field_value, value) > 0);
+		match = (vercmp(field_value, value) > 0);
 	} else log_warning("unknown oper: %s", oper);
 	log_debug("match result: %s", match ? "true" : "false");
 fail:
