@@ -344,9 +344,11 @@ fail:
 EFI_STATUS sdboot_boot_load_menu() {
 	EFI_STATUS status;
 	EFI_HANDLE *handles = NULL;
+	EFI_HANDLE current_handle = NULL;
 	embloader_dir dir;
 	UINTN handle_count = 0;
 	EFI_LOADED_IMAGE_PROTOCOL *li;
+	bool have_current_handle = false;
 	if (!confignode_path_get_bool(
 		g_embloader.config, "menu.sdboot.enabled", true, NULL
 	)) {
@@ -365,9 +367,11 @@ EFI_STATUS sdboot_boot_load_menu() {
 	);
 	memset(&dir, 0, sizeof(dir));
 	if ((li = efi_get_loaded_image())) {
-		dir.handle = li->DeviceHandle;
+		current_handle = li->DeviceHandle;
+		have_current_handle = true;
+		dir.handle = current_handle;
 		if (sdboot_check_fs(&dir)) {
-				status = sdboot_boot_load_dir(menu, &dir);
+			status = sdboot_boot_load_dir(menu, &dir);
 			if (!EFI_ERROR(status)) {
 				log_info("loaded systemd-boot menu from current device");
 				have_success = true;
@@ -377,7 +381,10 @@ EFI_STATUS sdboot_boot_load_menu() {
 	}
 	if (have_success && !use_multiple) goto done;
 	dir.handle = g_embloader.dir.handle;
-	if (sdboot_check_fs(&dir)) {
+	if (
+		(!have_current_handle || dir.handle != current_handle) &&
+		sdboot_check_fs(&dir)
+	) {
 		status = sdboot_boot_load_dir(menu, &dir);
 		if (!EFI_ERROR(status)) {
 			log_info("loaded systemd-boot menu from previous device");
@@ -393,6 +400,12 @@ EFI_STATUS sdboot_boot_load_menu() {
 	);
 	if (!EFI_ERROR(status)) for (UINTN i = 0; i < handle_count; i++) {
 		dir.handle = handles[i];
+		bool attempted =
+			(have_current_handle && dir.handle == current_handle) ||
+			dir.handle == g_embloader.dir.handle;
+		for (UINTN j = 0; !attempted && j < i; j++)
+			attempted = handles[j] == dir.handle;
+		if (attempted) continue;
 		if (!sdboot_check_fs(&dir)) continue;
 		status = sdboot_boot_load_dir(menu, &dir);
 		if (!EFI_ERROR(status)) {
