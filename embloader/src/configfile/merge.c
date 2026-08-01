@@ -135,18 +135,7 @@ static bool confignode_replace_contents(confignode* node, confignode* replacemen
 	return true;
 }
 
-/**
- * @brief Merge a config node tree into another config node tree.
- * For maps, child nodes with the same keys will be recursively merged.
- * For arrays, child nodes will be appended.
- * For other types, the target node will be replaced.
- *
- * @param node the target node to merge into
- * @param new the source node to merge from
- * @return true on success, false if parameters are invalid or operation failed
- *
- */
-bool confignode_merge(confignode* node, confignode* new) {
+static bool confignode_merge_in_place(confignode* node, confignode* new) {
 	if (!node || !new) return false;
 	if (node == new) return true;
 	if (node->type != new->type || (
@@ -172,7 +161,7 @@ bool confignode_merge(confignode* node, confignode* new) {
 		} else if (node->type == CONFIGNODE_TYPE_MAP) {
 			if (!n->key) return false;
 			confignode* s = confignode_map_get(node, n->key);
-			if (s) r = confignode_merge(s, n);
+			if (s) r = confignode_merge_in_place(s, n);
 			else {
 				confignode* copy = confignode_copy(n);
 				if (!copy) return false;
@@ -183,4 +172,29 @@ bool confignode_merge(confignode* node, confignode* new) {
 		if (!r) return false;
 	} while ((p = p->next));
 	return true;
+}
+
+/**
+ * @brief Merge a config node tree into another config node tree.
+ * For maps, child nodes with the same keys will be recursively merged.
+ * For arrays, child nodes will be appended.
+ * For other types, the target node will be replaced.
+ *
+ * @param node the target node to merge into
+ * @param new the source node to merge from
+ * @return true on success, false if parameters are invalid or operation failed
+ *
+ */
+bool confignode_merge(confignode* node, confignode* new) {
+	if (!node || !new) return false;
+	if (node == new) return true;
+	confignode* working = confignode_copy(node);
+	if (!working) return false;
+	if (!confignode_merge_in_place(working, new)) {
+		confignode_clean(working);
+		return false;
+	}
+	bool result = confignode_replace_contents(node, working);
+	if (!result) confignode_clean(working);
+	return result;
 }
