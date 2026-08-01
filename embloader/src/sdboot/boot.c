@@ -15,24 +15,43 @@
  */
 linux_bootinfo* sdboot_boot_loader_to_linux_bootinfo(sdboot_boot_loader *loader) {
 	list *p;
+	if (!loader) return NULL;
 	linux_bootinfo *info = malloc(sizeof(linux_bootinfo));
 	if (!info) return NULL;
 	memset(info, 0, sizeof(linux_bootinfo));
 	info->root = loader->root;
-	if (loader->kernel) info->kernel = strdup(loader->kernel);
-	if (loader->initramfs) info->initramfs = list_duplicate_chars(loader->initramfs, NULL);
-	if (loader->options) info->bootargs = loader->item && loader->item->bootargs ?
-		list_new_strdup(loader->item->bootargs) : list_duplicate_chars(loader->options, NULL);
-	if (loader->devicetree) info->devicetree = strdup(loader->devicetree);
+	if (loader->kernel && !(info->kernel = strdup(loader->kernel))) goto fail;
+	if (loader->initramfs && !(info->initramfs = list_duplicate_chars(
+		loader->initramfs, NULL
+	))) goto fail;
+	if (loader->options) {
+		info->bootargs = loader->item && loader->item->bootargs ?
+			list_new_strdup(loader->item->bootargs) :
+			list_duplicate_chars(loader->options, NULL);
+		if (!info->bootargs) goto fail;
+	}
+	if (
+		loader->devicetree &&
+		!(info->devicetree = strdup(loader->devicetree))
+	) goto fail;
 	if (loader->dtoverlay && (p = list_first(loader->dtoverlay))) do {
 		LIST_DATA_DECLARE(item, p, char*);
 		if (!item) continue;
 		linux_overlay ovl;
 		memset(&ovl, 0, sizeof(ovl));
-		ovl.path = strdup(item);
-		list_obj_add_new_dup(&info->dtoverlay, &ovl, sizeof(ovl));
+		if (!(ovl.path = strdup(item))) goto fail;
+		if (list_obj_add_new_dup(
+			&info->dtoverlay, &ovl, sizeof(ovl)
+		) != 0) {
+			free(ovl.path);
+			goto fail;
+		}
+		ovl.path = NULL;
 	} while ((p = p->next));
 	return info;
+fail:
+	linux_bootinfo_clean(info);
+	return NULL;
 }
 
 /**

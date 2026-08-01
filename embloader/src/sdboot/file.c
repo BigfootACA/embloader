@@ -102,7 +102,6 @@ EFI_STATUS sdboot_boot_load_file(
 		status = EFI_LOAD_ERROR;
 		goto fail;
 	}
-	free(buff);
 	if (is_entry) {
 		if (loader->arch != sdboot_get_current_arch()) {
 			log_debug(
@@ -110,8 +109,14 @@ EFI_STATUS sdboot_boot_load_file(
 				loader->name
 			);
 			sdboot_boot_loader_free(loader);
-		} else list_obj_add_new(&menu->loaders, loader);
+			loader = NULL;
+		} else if (list_obj_add_new(&menu->loaders, loader) != 0) {
+			log_error("failed to add sdboot loader %s", loader->name);
+			status = EFI_OUT_OF_RESOURCES;
+			goto fail;
+		} else loader = NULL;
 	}
+	free(buff);
 	return EFI_SUCCESS;
 fail:
 	if (loader) sdboot_boot_loader_free(loader);
