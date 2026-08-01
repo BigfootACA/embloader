@@ -102,8 +102,17 @@ list* confignode_value_get_string_or_list_to_list(confignode* node, bool* ok) {
 	) {
 		list *l = NULL;
 		confignode_foreach(iter, node) {
-			char *s = confignode_value_get_string(iter.node, NULL, NULL);
-			if (s) list_obj_add_new(&l, s);
+			if (!confignode_is_type(iter.node, CONFIGNODE_TYPE_VALUE))
+				continue;
+			bool item_ok = false;
+			char *s = confignode_value_get_string(
+				iter.node, NULL, &item_ok
+			);
+			if (!item_ok || !s || list_obj_add_new(&l, s) != 0) {
+				free(s);
+				if (l) list_free_all_def(l);
+				return NULL;
+			}
 		}
 		if (ok) *ok = true;
 		return l;

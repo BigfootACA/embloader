@@ -18,9 +18,16 @@ static bool parse_cmdline_line(const char* line, size_t len, const char* profile
 		if (start >= line + len) break;
 		const char* end = start;
 		while (end < line + len && !isspace((unsigned char)*end)) end++;
-		if (end > start && (param = strndup(start, end - start))) {
-			confignode_array_append(array_node, confignode_new_string(param));
+		if (end > start) {
+			param = strndup(start, end - start);
+			if (!param) return false;
+			confignode *value = confignode_new_string(param);
 			free(param);
+			if (!value) return false;
+			if (!confignode_array_append(array_node, value)) {
+				confignode_clean(value);
+				return false;
+			}
 		}
 		start = end;
 	}
@@ -41,15 +48,24 @@ EFI_STATUS embloader_load_cmdline_config(confignode *node, const char *buffer) {
 		node, "menu.bootargs", true
 	);
 	if (!dtree_node) return EFI_OUT_OF_RESOURCES;
-	if (!confignode_is_type(dtree_node, CONFIGNODE_TYPE_ARRAY))
-		confignode_replace(&dtree_node, confignode_new_array());
+	if (!confignode_is_type(dtree_node, CONFIGNODE_TYPE_ARRAY)) {
+		confignode *replacement = confignode_new_array();
+		if (!replacement) return EFI_OUT_OF_RESOURCES;
+		if (!confignode_replace(&dtree_node, replacement)) {
+			confignode_clean(replacement);
+			return EFI_OUT_OF_RESOURCES;
+		}
+	}
 	int lineno = 0;
 	while (*cur) {
+		lineno++;
 		while (*cur && *cur != '\n' && *cur != '\r') cur++;
 		size_t len = cur - line_start;
 		if (len > 0 && !parse_cmdline_line(line_start, len, profile, dtree_node)) {
-			log_warning("failed to parse cmdline line %d", lineno + 1);
+			log_warning("failed to parse cmdline line %d", lineno);
 			log_debug("line %d: '%.*s'", lineno, (int)len, line_start);
+			if (profile) free(profile);
+			return EFI_OUT_OF_RESOURCES;
 		}
 		if (*cur) {
 			cur++;

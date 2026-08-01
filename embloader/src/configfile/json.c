@@ -21,11 +21,8 @@ confignode* confignode_from_json(json_object* obj) {
 			if (!(m = confignode_new_map())) return NULL;
 			json_object_object_foreachC(obj, iter) {
 				confignode* sub = confignode_from_json(iter.val);
-				if (
-					!sub ||
-					!confignode_set_key(sub, iter.key) ||
-					!confignode_map_set(m, iter.key, sub)
-				) {
+				if (!sub || !confignode_map_set(m, iter.key, sub)) {
+					if (sub) confignode_clean(sub);
 					confignode_clean(m);
 					return NULL;
 				}
@@ -38,6 +35,7 @@ confignode* confignode_from_json(json_object* obj) {
 				json_object* subobj = json_object_array_get_idx(obj, i);
 				confignode* sub = confignode_from_json(subobj);
 				if (!sub || !confignode_array_append(m, sub)) {
+					if (sub) confignode_clean(sub);
 					confignode_clean(m);
 					return NULL;
 				}
