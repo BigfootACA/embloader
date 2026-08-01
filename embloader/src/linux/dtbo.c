@@ -299,6 +299,14 @@ int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum emblo
 	return applied_count;
 }
 
+static EFI_STATUS prepare_dtoverlay_fdt(linux_data *data) {
+	if (data->fdt || g_embloader.fdt) return EFI_SUCCESS;
+	linux_load_default_dtb();
+	if (g_embloader.fdt) return EFI_SUCCESS;
+	EFI_STATUS status = embloader_fetch_fdt();
+	return status == EFI_NOT_FOUND ? EFI_SUCCESS : status;
+}
+
 /**
  * @brief Load and apply device tree overlays for Linux boot
  *
@@ -320,8 +328,8 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 			g_embloader.config, "devicetree.overlays", false
 		)
 	) return EFI_SUCCESS;
-	if (!data->fdt && !g_embloader.fdt)
-		embloader_fetch_fdt();
+	EFI_STATUS status = prepare_dtoverlay_fdt(data);
+	if (EFI_ERROR(status)) return status;
 	if (!data->fdt && !g_embloader.fdt) {
 		log_warning("no device tree loaded, skip apply dtbo");
 		return EFI_SUCCESS;
