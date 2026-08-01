@@ -12,7 +12,7 @@
  * @return EFI_STATUS Returns EFI_SUCCESS on successful boot, or appropriate error code on failure
  */
 EFI_STATUS linux_boot_use_efi(linux_data *data) {
-	EFI_STATUS status;
+	EFI_STATUS status, unregister_status = EFI_SUCCESS;
 	EFI_HANDLE initrd_hand = NULL;
 	if (!data) return EFI_INVALID_PARAMETER;
 	if (data->fdt || g_embloader.fdt) {
@@ -43,10 +43,21 @@ EFI_STATUS linux_boot_use_efi(linux_data *data) {
 		}
 	}
 	status = linux_boot_efi(data->kernel, data->kernel_size, data->bootargs);
-	if (initrd_hand) linux_initramfs_unregister(initrd_hand);
+	if (initrd_hand) {
+		unregister_status = linux_initramfs_unregister(initrd_hand);
+		if (EFI_ERROR(unregister_status)) {
+			log_error(
+				"unregister initramfs failed: %s",
+				efi_status_to_string(unregister_status)
+			);
+			/* The installed protocol may still reference this buffer. */
+			data->initramfs = NULL;
+			data->initramfs_size = 0;
+		}
+	}
 	if (EFI_ERROR(status)) {
 		log_error("boot kernel failed: %s", efi_status_to_string(status));
 		return status;
 	}
-	return EFI_SUCCESS;
+	return unregister_status;
 }
