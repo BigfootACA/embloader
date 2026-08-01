@@ -1,4 +1,5 @@
 #include "../smbios.h"
+#include <string.h>
 
 static const char *processor_type_to_string(int v) {
 	switch (v) {
@@ -414,9 +415,13 @@ void smbios_load_type4(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_PO
 		confignode_path_set_int(m, "core_count", t->CoreCount);
 		confignode_path_set_int(m, "enabled_core_count", t->EnabledCoreCount);
 		confignode_path_set_int(m, "thread_count", t->ThreadCount);
-		set_processor_characteristics(m, (PROCESSOR_CHARACTERISTIC_FLAGS*)&t->ProcessorCharacteristics);
+		PROCESSOR_CHARACTERISTIC_FLAGS characteristics;
+		memcpy(&characteristics,&t->ProcessorCharacteristics,sizeof(characteristics));
+		set_processor_characteristics(m,&characteristics);
 	}
-	set_processor_feature_flags(m, &t->ProcessorId.FeatureFlags);
+	PROCESSOR_FEATURE_FLAGS features;
+	memcpy(&features,&t->ProcessorId.FeatureFlags,sizeof(features));
+	set_processor_feature_flags(m,&features);
 	if (ctx->version >= SMBIOS_VER(3,0)) {
 		int core_count = (t->CoreCount == 0xFF) ? t->CoreCount2 : t->CoreCount;
 		int enabled_core_count = (t->EnabledCoreCount == 0xFF) ? t->EnabledCoreCount2 : t->EnabledCoreCount;

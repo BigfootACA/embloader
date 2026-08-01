@@ -18,6 +18,10 @@ struct embloader_smbios{
 	UINT32 version;
 	SMBIOS_TABLE_ENTRY_POINT*smbios2;
 	SMBIOS_TABLE_3_0_ENTRY_POINT*smbios3;
+	UINTN table_start;
+	UINTN table_end;
+	UINT8*active_record;
+	UINT8*active_copy;
 };
 extern void embloader_init_info_smbios(embloader_smbios*ctx);
 extern SMBIOS_STRUCTURE_POINTER embloader_get_smbios_by_type(
@@ -110,13 +114,5 @@ extern void smbios_load_type43(embloader_smbios *ctx, confignode *m, SMBIOS_STRU
 extern void smbios_load_type44(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
 extern void smbios_load_type45(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
 extern void smbios_load_type46(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
-#define SMBIOS_GET(_ptr,_type,_field,_def)({\
-	SMBIOS_STRUCTURE_POINTER _p=(_ptr);\
-	UINTN _min_len=OFFSET_OF(SMBIOS_TABLE_TYPE##_type,_field)+sizeof(_p.Type##_type->_field);\
-	_p.Hdr->Length>_min_len?_p.Type##_type->_field:(_def);\
-})
-#define SMBIOS_VARX(_name,_ptr,_type,_field,_def)\
-	typeof((_ptr).Type##_type->_field) _name=SMBIOS_GET(_ptr,_type,_field,_def)
-#define SMBIOS_VAR(_ptr,_type,_field,_def) SMBIOS_VARX(_field,_ptr,_type,_field,_def)
 
 #endif

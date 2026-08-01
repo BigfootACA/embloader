@@ -1,4 +1,5 @@
 #include "../smbios.h"
+#include <string.h>
 
 void smbios_load_type43(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr) {
 	SMBIOS_TABLE_TYPE43 *t = ptr.Type43;
@@ -11,6 +12,8 @@ void smbios_load_type43(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_P
 	confignode_path_set_int(m, "firmware_version1", t->FirmwareVersion1);
 	confignode_path_set_int(m, "firmware_version2", t->FirmwareVersion2);
 	embloader_smbios_set_config_string(ctx, ptr, m, "description", t->Description);
-	confignode_path_set_int(m, "characteristics", *(UINT64*)&t->Characteristics);
+	UINT64 characteristics;
+	memcpy(&characteristics,&t->Characteristics,sizeof(characteristics));
+	confignode_path_set_int(m, "characteristics", characteristics);
 	confignode_path_set_int(m, "oem_defined", t->OemDefined);
 }
