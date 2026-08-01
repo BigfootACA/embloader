@@ -55,6 +55,10 @@ void log_flush_to(log_backend *backend, bool force) {
 		LIST_DATA_DECLARE(item, l, log_item*);
 		if (!item) continue;
 		log_size_cur += item->size;
+	} while ((l = l->next));
+	if ((l = list_first(log_items))) do {
+		LIST_DATA_DECLARE(item, l, log_item*);
+		if (!item) continue;
 		if (log_flush_one_to(backend, item, force) < 0) break;
 	} while ((l = l->next));
 }
