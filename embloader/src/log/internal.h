@@ -18,6 +18,7 @@ struct log_item {
 	log_level level;
 	EFI_TIME time;
 	bool log_flushed;
+	list *flushed_backends;
 	uint32_t size;
 	int lineno;
 	const char *tag;
@@ -51,8 +52,10 @@ extern log_item* log_item_create(
 	const char *content
 );
 extern bool log_append(struct log_item *item);
+extern void log_item_invalidate_flush_state();
+extern void log_item_forget_backend(log_backend *backend);
 extern void log_flush_all(bool force);
-extern void log_flush_one_to(log_backend *backend, log_item *item, bool force);
+extern int log_flush_one_to(log_backend *backend, log_item *item, bool force);
 extern void log_flush_fast();
 extern const char *log_level_str(log_level level);
 extern bool log_level_from_str(const char *str, log_level *level);

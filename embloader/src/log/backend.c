@@ -41,8 +41,9 @@ int log_backend_deinit(log_backend *backend) {
 
 /**
  * @brief Flush all buffered log items to a specific backend.
- * Iterates through all stored log items and writes unflushed ones to the
- * given backend. Also recalculates the current log size.
+ * Iterates through stored log items in order and writes entries not yet
+ * delivered to the given backend. Stops on the first write failure so a
+ * later retry preserves backend ordering. Also recalculates the current size.
  *
  * @param backend the log backend to flush to
  * @param force   if true, flush all items regardless of their flushed state
@@ -54,9 +55,7 @@ void log_flush_to(log_backend *backend, bool force) {
 		LIST_DATA_DECLARE(item, l, log_item*);
 		if (!item) continue;
 		log_size_cur += item->size;
-		if (item->log_flushed && !force) continue;
-		if (log_backend_write(backend, item) < 0) continue;
-		item->log_flushed = true;
+		if (log_flush_one_to(backend, item, force) < 0) break;
 	} while ((l = l->next));
 }
 
@@ -93,8 +92,9 @@ log_backend* log_backend_create(
 		memset(backend->ctx, 0, base->ctx_size);
 	}
 	if (log_backend_init(backend) < 0) goto fail;
-	log_flush_to(backend, true);
 	if (list_obj_add_new(&log_backends, backend) < 0) goto fail;
+	log_item_invalidate_flush_state();
+	log_flush_to(backend, false);
 	log_info("log backend %s created from %s", backend->name, base->name);
 	return backend;
 fail:
@@ -112,6 +112,7 @@ fail:
 void log_backend_destroy(log_backend *backend) {
 	if (!backend) return;
 	list_obj_del_data(&log_backends, backend, NULL);
+	log_item_forget_backend(backend);
 	log_backend_deinit(backend);
 	if (backend->name) free(backend->name);
 	if (backend->ctx && backend->base && backend->base->ctx_size > 0)
