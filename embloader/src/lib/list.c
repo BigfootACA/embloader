@@ -7,6 +7,7 @@
  */
 
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <string.h>
 #include <stdbool.h>
@@ -90,10 +91,13 @@ int list_unshift_new(list* point, void* data) {
 int list_count(list* point) {
 	errno = 0;
 	if (!point) ERET(EINVAL);
-	int t = 1;
+	int t = 0;
 	list* cur = list_first(point);
 	if (!cur) return -errno;
-	while ((cur = cur->next) && cur != point) t++;
+	do {
+		if (t == INT_MAX) ERET(EOVERFLOW);
+		t++;
+	} while ((cur = cur->next));
 	return t;
 }
 
