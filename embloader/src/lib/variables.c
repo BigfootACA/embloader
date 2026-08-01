@@ -1,6 +1,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <ctype.h>
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -315,8 +317,12 @@ EFI_STATUS efivar_get_str16_to_uint64(
 	status = efivar_get_str16_to_str8(vendor, name, &buf);
 	if (EFI_ERROR(status)) return status;
 	char *end = NULL;
+	errno = 0;
 	unsigned long long val = strtoull(buf, &end, 0);
-	if (end == buf || *end != '\0') {
+	if (
+		!buf[0] || isspace((unsigned char)buf[0]) || buf[0] == '-' ||
+		end == buf || *end != '\0' || errno == ERANGE
+	) {
 		free(buf);
 		return EFI_INVALID_PARAMETER;
 	}
@@ -336,8 +342,12 @@ EFI_STATUS efivar_get_str8_to_uint64(
 	status = efivar_get_str8(vendor, name, &buf);
 	if (EFI_ERROR(status)) return status;
 	char *end = NULL;
+	errno = 0;
 	unsigned long long val = strtoull(buf, &end, 0);
-	if (end == buf || *end != '\0') {
+	if (
+		!buf[0] || isspace((unsigned char)buf[0]) || buf[0] == '-' ||
+		end == buf || *end != '\0' || errno == ERANGE
+	) {
 		free(buf);
 		return EFI_INVALID_PARAMETER;
 	}
