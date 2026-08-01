@@ -27,7 +27,11 @@ list* embloader_dt_get_dtb_id() {
 		if (!cp) continue;
 		char *id = confignode_path_get_string(cp, "dtb-id", NULL, NULL);
 		if (!id) continue;
-		list_obj_add_new(&ret, id);
+		if (list_obj_add_new(&ret, id) != 0) {
+			free(id);
+			if (ret) list_free_all_def(ret);
+			return NULL;
+		}
 	} while ((p = p->next));
 	return ret;
 }
