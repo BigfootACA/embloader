@@ -2,6 +2,8 @@
 #define _GNU_SOURCE
 #endif
 #include <Library/UefiBootServicesTableLib.h>
+#include <inttypes.h>
+#include <limits.h>
 #include <stdio.h>
 #include "log.h"
 #include "menu.h"
@@ -140,7 +142,12 @@ void embloader_load_menu() {
 	}
 	if (menu->default_entry)
 		free(menu->default_entry);
-	menu->timeout = confignode_path_get_int(cfg, "menu.timeout", 10, NULL);
+	int64_t timeout = confignode_path_get_int(cfg, "menu.timeout", 10, NULL);
+	if (timeout < INT_MIN || timeout > INT_MAX) {
+		log_warning("menu timeout is out of range: %" PRId64, timeout);
+		timeout = 10;
+	}
+	menu->timeout = (int)timeout;
 	menu->save_default = confignode_path_get_bool(cfg, "menu.save-default", false, NULL);
 	menu->default_entry = confignode_path_get_string(cfg, "menu.default", NULL, NULL);
 	menu->title = confignode_path_get_string(cfg, "menu.title", "", NULL);
