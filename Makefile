@@ -8,6 +8,10 @@ PACKAGES_PATH ?= $(EDK2_PATH):$(shell pwd)
 WORKSPACE ?= $(shell pwd)/build
 ifeq ($(ARCH),x86_64)
 	EDK2_ARCH = X64
+else ifeq ($(ARCH),amd64)
+	EDK2_ARCH = X64
+else ifeq ($(ARCH),x64)
+	EDK2_ARCH = X64
 else ifeq ($(ARCH),aarch64)
 	EDK2_ARCH = AARCH64
 else ifeq ($(ARCH),arm64)
@@ -15,6 +19,12 @@ else ifeq ($(ARCH),arm64)
 else ifeq ($(ARCH),riscv64)
 	EDK2_ARCH = RISCV64
 else ifeq ($(ARCH),i386)
+	EDK2_ARCH = IA32
+else ifeq ($(ARCH),i486)
+	EDK2_ARCH = IA32
+else ifeq ($(ARCH),i586)
+	EDK2_ARCH = IA32
+else ifeq ($(ARCH),i686)
 	EDK2_ARCH = IA32
 else ifeq ($(ARCH),arm)
 	EDK2_ARCH = ARM
@@ -31,21 +41,20 @@ export EDK2_PATH EDK_TOOLS_PATH PACKAGES_PATH WORKSPACE
 all: build-edk2
 
 clean:
-	$(MAKE) -C $(EDK2_PATH)/BaseTools clean
-	$(MAKE) -C $(EDK2_PATH)/BaseTools/Source/C/BrotliCompress/brotli clean
-	$(MAKE) -C $(EDK2_PATH)/CryptoPkg/Library/MbedTlsLib/mbedtls clean
-	$(MAKE) -C $(EDK2_PATH)/MdeModulePkg/Library/BrotliCustomDecompressLib/brotli clean
-	rm -rf --no-preserve-root --one-file-system $(WORKSPACE)/Build
-
-basetools:
-	$(MAKE) -C $(EDK_TOOLS_PATH)
+	$(MAKE) -C "$(EDK2_PATH)/BaseTools" clean
+	workspace="$(WORKSPACE)"; \
+	test -n "$$workspace" && \
+	rm -rf --one-file-system -- "$$workspace/Build"
 
 patched: scripts/patch.sh patches/*/*.patch
 	bash scripts/patch.sh
 
-build-edk2: patched
-	mkdir -p $(WORKSPACE)
-	source $(EDK2_PATH)/edksetup.sh && \
+basetools: patched
+	$(MAKE) -C "$(EDK_TOOLS_PATH)"
+
+build-edk2: basetools
+	mkdir -p "$(WORKSPACE)"
+	source "$(EDK2_PATH)/edksetup.sh" && \
 	build \
 		-a $(EDK2_ARCH) \
 		-t $(EDK2_TOOLCHAIN) \
@@ -61,8 +70,14 @@ qemu-x86_64: build-edk2
 		-display none \
 		-serial stdio \
 		-nic none \
-		-kernel $(WORKSPACE)/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/X64/embloader.efi
+		-kernel "$(WORKSPACE)/Build/embloader/$(EDK2_TARGET)_$(EDK2_TOOLCHAIN)/X64/embloader.efi"
 
-qemu: qemu-$(ARCH)
+ifeq ($(EDK2_ARCH),X64)
+qemu: qemu-x86_64
+else
+qemu:
+	@echo "QEMU target is only available for x86-64 builds" >&2
+	@exit 1
+endif
 
 .PHONY: all clean build-edk2 patched basetools qemu qemu-x86_64
