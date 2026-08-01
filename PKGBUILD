@@ -22,10 +22,11 @@ source=(
 	"nanosvg::git+https://github.com/memononen/nanosvg"
 	"edk2::git+https://github.com/tianocore/edk2"
 	"brotli::git+https://github.com/google/brotli"
+	"mipisyst::git+https://github.com/MIPI-Alliance/public-mipi-sys-t.git"
 )
 sha256sums=(
 	SKIP SKIP SKIP SKIP SKIP SKIP
-	SKIP SKIP SKIP SKIP SKIP
+	SKIP SKIP SKIP SKIP SKIP SKIP
 )
 
 pkgver(){
@@ -60,8 +61,12 @@ prepare() {
 	git -C edk2 config \
 		"submodule.BaseTools/Source/C/BrotliCompress/brotli.url" \
 		"$srcdir/brotli"
+	git -C edk2 config \
+		"submodule.MdePkg/Library/MipiSysTLib/mipisyst.url" \
+		"$srcdir/mipisyst"
 	git -C edk2 -c protocol.file.allow=always submodule update --init -- \
-		BaseTools/Source/C/BrotliCompress/brotli
+		BaseTools/Source/C/BrotliCompress/brotli \
+		MdePkg/Library/MipiSysTLib/mipisyst
 }
 
 build(){

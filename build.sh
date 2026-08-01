@@ -15,11 +15,13 @@ if [[ -e .git ]]; then
 	)
 	git submodule update --init --depth 1 -- "${submodules[@]}"
 	git -C edk2 submodule update --init --depth 1 -- \
-		BaseTools/Source/C/BrotliCompress/brotli
+		BaseTools/Source/C/BrotliCompress/brotli \
+		MdePkg/Library/MipiSysTLib/mipisyst
 else
 	required_files=(
 		edk2/edksetup.sh
 		edk2/BaseTools/Source/C/BrotliCompress/brotli/c/common/constants.c
+		edk2/MdePkg/Library/MipiSysTLib/mipisyst/library/include/mipi_syst/api.h
 		embloader/ext/newlib/newlib/libc/include/stdlib.h
 		embloader/ext/json-c/json_object.c
 		embloader/ext/dtc/libfdt/fdt.c
