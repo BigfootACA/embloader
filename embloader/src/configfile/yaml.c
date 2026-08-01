@@ -7,16 +7,22 @@ static confignode* parse_yaml_node(yaml_parser_t* parser, yaml_event_t* event) {
 		case YAML_SCALAR_EVENT: {
 			char* value = (char*) event->data.scalar.value;
 			char* tag = (char*) event->data.scalar.tag;
-			if (tag && strcmp(tag, "tag:yaml.org,2002:bool") == 0) {
+			if (tag && strcmp(tag, YAML_STR_TAG) == 0) {
+				return confignode_new_string(value);
+			} else if (tag && strcmp(tag, YAML_BOOL_TAG) == 0) {
 				return confignode_new_bool(
 					string_is_true(value));
-			} else if (tag && strcmp(tag, "tag:yaml.org,2002:int") == 0) {
+			} else if (tag && strcmp(tag, YAML_INT_TAG) == 0) {
 				return confignode_new_int(
 					strtoll(value, NULL, 10));
-			} else if (tag && strcmp(tag, "tag:yaml.org,2002:float") == 0) {
+			} else if (tag && strcmp(tag, YAML_FLOAT_TAG) == 0) {
 				return confignode_new_float(strtod(value, NULL));
-			} else if (tag && strcmp(tag, "tag:yaml.org,2002:null") == 0) {
+			} else if (tag && strcmp(tag, YAML_NULL_TAG) == 0) {
 				return confignode_new();
+			} else if (
+				tag || event->data.scalar.style != YAML_PLAIN_SCALAR_STYLE
+			) {
+				return confignode_new_string(value);
 			} else if (
 				strcmp(value, "null") == 0 ||
 				strcmp(value, "~") == 0 ||
