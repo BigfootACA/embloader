@@ -97,12 +97,8 @@ fdt linux_try_load_dtb(EFI_FILE_PROTOCOL *base, const char *dtb, bool grow) {
 		log_warning("dtb size limit is 2MiB");
 		goto fail;
 	}
-	if ((ret = fdt_check_header(data)) < 0) {
-		log_warning("invalid dtb header %s: %s", dtb, fdt_strerror(ret));
-		goto fail;
-	}
-	if (fdt_totalsize(data) > len) {
-		log_warning("incomplete dtb data %s", dtb);
+	if ((ret = fdt_check_full(data, len)) < 0) {
+		log_warning("invalid dtb %s: %s", dtb, fdt_strerror(ret));
 		goto fail;
 	}
 	if (grow) {
