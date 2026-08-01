@@ -308,7 +308,7 @@ EFI_STATUS efi_readline(
 		} else if (
 			key.ScanCode == SCAN_NULL &&
 			key.UnicodeChar <= 0xFF &&
-			isprint((char) key.UnicodeChar)
+			isprint((unsigned char) key.UnicodeChar)
 		) {
 			if (len + 1 < size) {
 				timeout = INT32_MAX;

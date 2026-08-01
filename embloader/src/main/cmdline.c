@@ -9,15 +9,15 @@
 
 static bool parse_cmdline_line(const char* line, size_t len, const char* profile, confignode* array_node) {
 	if (!line || !array_node || len == 0) return false;
-	while (len > 0 && isspace(*line)) line++, len--;
+	while (len > 0 && isspace((unsigned char)*line)) line++, len--;
 	if (len == 0 || *line == '#') return true;
 	const char* start = line;
 	char *param;
 	while (start < line + len) {
-		while (start < line + len && isspace(*start)) start++;
+		while (start < line + len && isspace((unsigned char)*start)) start++;
 		if (start >= line + len) break;
 		const char* end = start;
-		while (end < line + len && !isspace(*end)) end++;
+		while (end < line + len && !isspace((unsigned char)*end)) end++;
 		if (end > start && (param = strndup(start, end - start))) {
 			confignode_array_append(array_node, confignode_new_string(param));
 			free(param);

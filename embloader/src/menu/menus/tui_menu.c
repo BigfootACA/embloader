@@ -402,7 +402,7 @@ static void show_editor_dialog(struct tui_context *ctx, embloader_loader *item) 
 		} else if (
 			key.ScanCode == SCAN_NULL &&
 			key.UnicodeChar <= 0xFF &&
-			isprint((char)key.UnicodeChar)
+			isprint((unsigned char)key.UnicodeChar)
 		) {
 			if (len < 16383) {
 				memmove(&buffer[cursor_pos + 1], &buffer[cursor_pos], len - cursor_pos + 1);
