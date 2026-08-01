@@ -1,6 +1,8 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <errno.h>
+#include <math.h>
 #include <string.h>
 #include "internal.h"
 #include "str-utils.h"
@@ -155,15 +157,20 @@ int64_t confignode_value_get_int(confignode* node, int64_t def, bool* ok) {
 			if (ok) *ok = true;
 			return node->value.v.i;
 		case VALUE_STRING: {
-			char* endptr;
+			if (!node->value.v.s) return def;
+			char* endptr = NULL;
+			errno = 0;
 			int64_t ret = strtoll(node->value.v.s, &endptr, 10);
-			if (endptr == node->value.v.s) return def;
+			if (endptr == node->value.v.s || *endptr != 0 || errno == ERANGE) return def;
 			if (ok) *ok = true;
 			return ret;
 		}
-		case VALUE_FLOAT:
+		case VALUE_FLOAT: {
+			double value = node->value.v.f;
+			if (!isfinite(value) || value < (double) INT64_MIN || value >= -(double) INT64_MIN) return def;
 			if (ok) *ok = true;
-			return (int64_t) node->value.v.f;
+			return (int64_t) value;
+		}
 		case VALUE_BOOL:
 			if (ok) *ok = true;
 			return node->value.v.b ? 1 : 0;
@@ -190,9 +197,11 @@ double confignode_value_get_float(confignode* node, double def, bool* ok) {
 			if (ok) *ok = true;
 			return node->value.v.f;
 		case VALUE_STRING: {
+			if (!node->value.v.s) return def;
 			char* end = NULL;
+			errno = 0;
 			double ret = strtod(node->value.v.s, &end);
-			if (end == node->value.v.s) return def;
+			if (end == node->value.v.s || *end != 0 || errno == ERANGE) return def;
 			if (ok) *ok = true;
 			return ret;
 		}
