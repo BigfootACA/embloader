@@ -341,8 +341,12 @@ bool confignode_path_array_append(
 	if (!n) return false;
 	if (n->type != CONFIGNODE_TYPE_ARRAY) {
 		if (!n->parent) return false;
-		confignode_replace(&n, confignode_new_array());
-		if (n->type != CONFIGNODE_TYPE_ARRAY) return false;
+		confignode* replacement = confignode_new_array();
+		if (!replacement) return false;
+		if (!confignode_replace(&n, replacement)) {
+			confignode_clean(replacement);
+			return false;
+		}
 	}
 	return confignode_array_append(n, sub);
 }
@@ -370,8 +374,12 @@ bool confignode_path_array_set(
 	if (!n) return false;
 	if (n->type != CONFIGNODE_TYPE_ARRAY) {
 		if (!n->parent) return false;
-		confignode_replace(&n, confignode_new_array());
-		if (n->type != CONFIGNODE_TYPE_ARRAY) return false;
+		confignode* replacement = confignode_new_array();
+		if (!replacement) return false;
+		if (!confignode_replace(&n, replacement)) {
+			confignode_clean(replacement);
+			return false;
+		}
 	}
 	return confignode_array_set(n, index, sub);
 }
@@ -399,8 +407,12 @@ bool confignode_path_array_insert(
 	if (!n) return false;
 	if (n->type != CONFIGNODE_TYPE_ARRAY) {
 		if (!n->parent) return false;
-		confignode_replace(&n, confignode_new_array());
-		if (n->type != CONFIGNODE_TYPE_ARRAY) return false;
+		confignode* replacement = confignode_new_array();
+		if (!replacement) return false;
+		if (!confignode_replace(&n, replacement)) {
+			confignode_clean(replacement);
+			return false;
+		}
 	}
 	return confignode_array_insert(n, index, sub);
 }
