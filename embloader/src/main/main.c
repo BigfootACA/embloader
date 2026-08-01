@@ -10,6 +10,7 @@
 #include "bootmenu.h"
 #include "sdboot.h"
 #include "configfile.h"
+#include "efi-utils.h"
 #include "ticks.h"
 #include "log.h"
 
@@ -63,8 +64,18 @@ EFI_STATUS EFIAPI efi_main(
 		log_warning("no matched device found in config");
 	gBS->SetWatchdogTimer(0, 0, 0, NULL);
 	embloader_load_menu();
-	sdboot_boot_load_menu();
-	EFI_STATUS status = embloader_show_menu();
+	EFI_STATUS status = sdboot_boot_load_menu();
+	if (
+		EFI_ERROR(status) &&
+		status != EFI_NOT_FOUND && status != EFI_UNSUPPORTED
+	) {
+		log_error(
+			"failed to load systemd-boot menu: %s",
+			efi_status_to_string(status)
+		);
+		return status;
+	}
+	status = embloader_show_menu();
 	log_info("exiting embloader");
 	return status;
 }
