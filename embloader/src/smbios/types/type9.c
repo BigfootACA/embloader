@@ -1,4 +1,5 @@
 #include "../smbios.h"
+#include <string.h>
 
 static const char *slot_type_to_string(int v) {
 	switch (v) {
@@ -114,13 +115,19 @@ void smbios_load_type9(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_PO
 		confignode_path_set_int(m, "peer_grouping_count", t->PeerGroupingCount);
 		confignode *peer_array = confignode_new_array();
 		confignode_path_map_set(m, "peer_groups", peer_array);
-		for (int i = 0; i < t->PeerGroupingCount && i < 1; ++i) {
+		size_t offset = OFFSET_OF(SMBIOS_TABLE_TYPE9, PeerGroups);
+		size_t available = t->Hdr.Length > offset ? t->Hdr.Length - offset : 0;
+		size_t peer_count = available / sizeof(MISC_SLOT_PEER_GROUP);
+		if (peer_count > t->PeerGroupingCount) peer_count = t->PeerGroupingCount;
+		for (size_t i = 0; i < peer_count; ++i) {
+			MISC_SLOT_PEER_GROUP group;
+			memcpy(&group, ptr.Raw + offset + i * sizeof(group), sizeof(group));
 			confignode *peer = confignode_new_map();
 			confignode_array_append(peer_array, peer);
-			confignode_path_set_int(peer, "segment_group_num", t->PeerGroups[i].SegmentGroupNum);
-			confignode_path_set_int(peer, "bus_num", t->PeerGroups[i].BusNum);
-			confignode_path_set_int(peer, "dev_func_num", t->PeerGroups[i].DevFuncNum);
-			confignode_path_set_int(peer, "data_bus_width", t->PeerGroups[i].DataBusWidth);
+			confignode_path_set_int(peer, "segment_group_num", group.SegmentGroupNum);
+			confignode_path_set_int(peer, "bus_num", group.BusNum);
+			confignode_path_set_int(peer, "dev_func_num", group.DevFuncNum);
+			confignode_path_set_int(peer, "data_bus_width", group.DataBusWidth);
 		}
 	}
 }
