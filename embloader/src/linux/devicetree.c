@@ -14,26 +14,35 @@
  * This function retrieves device tree blob identifiers from all active profiles
  * in the system configuration, which are used for DTB selection and matching.
  *
- * @return list* List of DTB ID strings, or NULL if no profiles or DTB IDs found
+ * @param ids Output list of DTB ID strings, or NULL when no IDs are found
+ * @return bool true on success, false on allocation or copy failure
  */
-list* embloader_dt_get_dtb_id() {
-	list *p, *ret = NULL;
+bool embloader_dt_get_dtb_id(list **ids) {
+	if (!ids) return false;
+	*ids = NULL;
+	list *p;
 	confignode *np = confignode_map_get(g_embloader.config, "profiles");
-	if (!np) return NULL;
+	if (!np) return true;
 	if ((p = list_first(g_embloader.profiles))) do {
 		LIST_DATA_DECLARE(profile, p, char*);
 		if (!profile) continue;
 		confignode *cp = confignode_map_get(np, profile);
 		if (!cp) continue;
-		char *id = confignode_path_get_string(cp, "dtb-id", NULL, NULL);
-		if (!id) continue;
-		if (list_obj_add_new(&ret, id) != 0) {
+		confignode *id_node = confignode_map_get(cp, "dtb-id");
+		if (!confignode_is_type(id_node, CONFIGNODE_TYPE_VALUE)) continue;
+		bool ok = false;
+		char *id = confignode_value_get_string(id_node, NULL, &ok);
+		if (!ok || !id) goto fail;
+		if (list_obj_add_new(ids, id) != 0) {
 			free(id);
-			if (ret) list_free_all_def(ret);
-			return NULL;
+			goto fail;
 		}
 	} while ((p = p->next));
-	return ret;
+	return true;
+fail:
+	if (*ids) list_free_all_def(*ids);
+	*ids = NULL;
+	return false;
 }
 
 /**

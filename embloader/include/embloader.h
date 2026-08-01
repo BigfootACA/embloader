@@ -38,7 +38,7 @@ extern bool embloader_try_matches(confignode *node);
 extern bool embloader_choose_device();
 extern void embloader_load_ktype();
 extern list* embloader_resolve_path(const char *path);
-extern list* embloader_dt_get_dtb_id();
+extern bool embloader_dt_get_dtb_id(list **ids);
 extern list* embloader_dt_get_dtbo_dir();
 extern list* embloader_dt_get_default_dtb();
 extern EFI_STATUS embloader_load_dtbo_config(confignode *node, const char *buffer);

@@ -7,27 +7,32 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static list* ktype_getter() {
-	list *ret = NULL;
-	if (g_embloader.ktype)
-		list_obj_add_new_strdup(&ret, g_embloader.ktype);
-	return ret;
+static bool ktype_getter(list **values) {
+	if (!values) return false;
+	*values = NULL;
+	if (!g_embloader.ktype) return true;
+	return list_obj_add_new_strdup(values, g_embloader.ktype) == 0;
 }
 
-static list* profile_getter() {
-	list *ret = NULL;
+static bool profile_getter(list **values) {
+	if (!values) return false;
+	*values = NULL;
 	list *p;
 	if ((p = list_first(g_embloader.profiles))) do {
 		LIST_DATA_DECLARE(profile, p, char*);
 		if (!profile) continue;
-		list_obj_add_new_strdup(&ret, profile);
+		if (list_obj_add_new_strdup(values, profile) != 0) {
+			if (*values) list_free_all_def(*values);
+			*values = NULL;
+			return false;
+		}
 	} while ((p = p->next));
-	return ret;
+	return true;
 }
 
 static struct variable_getter {
 	const char *name;
-	list* (*getter)();
+	bool (*getter)(list **values);
 } variable_getters[] = {
 	{"ktype", ktype_getter},
 	{"profile", profile_getter},
@@ -105,7 +110,11 @@ static bool resolve_path_recursive(list **result, const char *path, int var_inde
 		return list_obj_add_new_strdup(result, path) == 0;
 	}
 	const char *var_name = variable_getters[var_index].name;
-	list *values = variable_getters[var_index].getter();
+	list *values = NULL;
+	if (!variable_getters[var_index].getter(&values)) {
+		if (values) list_free_all_def(values);
+		return false;
+	}
 	if (!values) {
 		return resolve_path_recursive(result, path, var_index + 1);
 	}
