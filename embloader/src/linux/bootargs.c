@@ -1,6 +1,23 @@
 #include "linuxboot.h"
 #include "log.h"
 
+static bool append_config_bootargs(
+	list **bootargs,
+	confignode *node,
+	const char *path
+) {
+	confignode *configured = confignode_path_lookup(node, path, false);
+	if (!configured) return true;
+	bool ok = false;
+	list *values = confignode_value_get_string_or_list_to_list(configured, &ok);
+	if (!ok) return false;
+	if (values && list_obj_add(bootargs, values) != 0) {
+		list_free_all_def(values);
+		return false;
+	}
+	return true;
+}
+
 /**
  * @brief Prepare boot arguments string from configuration and optional default list
  *
@@ -15,7 +32,7 @@
  *         Caller is responsible for freeing the returned string
  */
 char* linux_prepare_bootargs(list *def_bootargs) {
-	list *p, *q;
+	list *p;
 	list *bootargs = NULL;
 	confignode *np = confignode_map_get(g_embloader.config, "profiles");
 	if (np && (p = list_last(g_embloader.profiles))) do {
@@ -23,16 +40,18 @@ char* linux_prepare_bootargs(list *def_bootargs) {
 		if (!profile) continue;
 		confignode *cp = confignode_map_get(np, profile);
 		if (!cp) continue;
-		if ((q = confignode_path_get_string_or_list_to_list(
-			cp, "bootargs", NULL
-		))) list_obj_add(&bootargs, q);
+		if (!append_config_bootargs(&bootargs, cp, "bootargs")) goto fail;
 	} while ((p = p->prev));
-	if ((q = confignode_path_get_string_or_list_to_list(
-		g_embloader.config, "menu.bootargs", NULL
-	))) list_obj_add(&bootargs, q);
+	if (!append_config_bootargs(
+		&bootargs, g_embloader.config, "menu.bootargs"
+	)) goto fail;
 	if (def_bootargs) {
 		list *n = list_duplicate_chars(def_bootargs, NULL);
-		if (n) list_obj_add(&bootargs, n);
+		if (!n) goto fail;
+		if (list_obj_add(&bootargs, n) != 0) {
+			list_free_all_def(n);
+			goto fail;
+		}
 	}
 	if (!bootargs) return strdup("");
 	char *result = list_to_string(bootargs, " ");
@@ -49,6 +68,9 @@ char* linux_prepare_bootargs(list *def_bootargs) {
 	}
 	list_free_all_def(bootargs);
 	return result;
+fail:
+	if (bootargs) list_free_all_def(bootargs);
+	return NULL;
 }
 
 /**

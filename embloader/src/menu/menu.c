@@ -79,27 +79,30 @@ void embloader_load_loader(confignode *node) {
 	int count = g_embloader.menu->loaders ? list_count(g_embloader.menu->loaders) : 0;
 	loader->priority = confignode_path_get_int(node, "priority", count + 1, NULL);
 	loader->node = node;
-	if (!loader_is_valid(loader)) {
-		if (loader->name) free(loader->name);
-		if (loader->title) free(loader->title);
-		free(loader);
-		return;
-	}
+	if (!loader_is_valid(loader)) goto fail;
+	const char *bootargs_path = NULL;
 	if (loader->type == LOADER_EFI) {
-		loader->bootargs = confignode_path_get_string_or_list(node, "cmdline", " ", NULL);
+		bootargs_path = "cmdline";
 		loader->editor = confignode_path_get_bool(node, "editor", false, NULL);
 	} else if (
 		loader->type == LOADER_LINUX_EFI || loader->type == LOADER_LINUX
 	) {
-		loader->bootargs = confignode_path_get_string_or_list(node, "bootargs", " ", NULL);
+		bootargs_path = "bootargs";
 		loader->editor = confignode_path_get_bool(node, "editor", true, NULL);
 	}
-	if (list_obj_add_new(&g_embloader.menu->loaders, loader) != 0) {
-		free(loader->bootargs);
-		free(loader->title);
-		free(loader->name);
-		free(loader);
+	if (bootargs_path && confignode_path_lookup(node, bootargs_path, false)) {
+		bool ok = false;
+		loader->bootargs = confignode_path_get_string_or_list(
+			node, bootargs_path, " ", &ok
+		);
+		if (!ok) goto fail;
 	}
+	if (list_obj_add_new(&g_embloader.menu->loaders, loader) == 0) return;
+fail:
+	free(loader->bootargs);
+	free(loader->title);
+	free(loader->name);
+	free(loader);
 }
 
 static bool loaders_sorter(list *f1, list *f2){
