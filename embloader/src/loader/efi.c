@@ -56,6 +56,7 @@ EFI_STATUS embloader_start_efi(
 	if (cmdline && cmdline[0]) {
 		if (!(options = encode_utf8_to_utf16(cmdline))) {
 			log_error("failed to convert cmdline");
+			status = EFI_OUT_OF_RESOURCES;
 			goto fail;
 		}
 		li->LoadOptions = options;
