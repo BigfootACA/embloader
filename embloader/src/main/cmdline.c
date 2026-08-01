@@ -7,7 +7,11 @@
 #include <string.h>
 #include <ctype.h>
 
-static bool parse_cmdline_line(const char* line, size_t len, const char* profile, confignode* array_node) {
+static bool parse_cmdline_line(
+	const char* line,
+	size_t len,
+	confignode* array_node
+) {
 	if (!line || !array_node || len == 0) return false;
 	while (len > 0 && isspace((unsigned char)*line)) line++, len--;
 	if (len == 0 || *line == '#') return true;
@@ -43,29 +47,31 @@ static bool parse_cmdline_line(const char* line, size_t len, const char* profile
 EFI_STATUS embloader_load_cmdline_config(confignode *node, const char *buffer) {
 	if (!node || !buffer) return EFI_INVALID_PARAMETER;
 	const char* line_start = buffer, *cur = buffer;
-	char *profile = NULL;
-	confignode* dtree_node = confignode_path_lookup(
-		node, "menu.bootargs", true
-	);
-	if (!dtree_node) return EFI_OUT_OF_RESOURCES;
-	if (!confignode_is_type(dtree_node, CONFIGNODE_TYPE_ARRAY)) {
+	confignode *old_menu = confignode_map_get(node, "menu");
+	confignode *menu = old_menu && confignode_is_type(
+		old_menu, CONFIGNODE_TYPE_MAP
+	) ? confignode_copy(old_menu) : confignode_new_map();
+	if (!menu) return EFI_OUT_OF_RESOURCES;
+	confignode *bootargs = confignode_map_get(menu, "bootargs");
+	if (!bootargs || !confignode_is_type(bootargs, CONFIGNODE_TYPE_ARRAY)) {
 		confignode *replacement = confignode_new_array();
-		if (!replacement) return EFI_OUT_OF_RESOURCES;
-		if (!confignode_replace(&dtree_node, replacement)) {
-			confignode_clean(replacement);
-			return EFI_OUT_OF_RESOURCES;
+		if (!replacement || !confignode_map_set(
+			menu, "bootargs", replacement
+		)) {
+			if (replacement) confignode_clean(replacement);
+			goto fail;
 		}
+		bootargs = replacement;
 	}
 	int lineno = 0;
 	while (*cur) {
 		lineno++;
 		while (*cur && *cur != '\n' && *cur != '\r') cur++;
 		size_t len = cur - line_start;
-		if (len > 0 && !parse_cmdline_line(line_start, len, profile, dtree_node)) {
+		if (len > 0 && !parse_cmdline_line(line_start, len, bootargs)) {
 			log_warning("failed to parse cmdline line %d", lineno);
 			log_debug("line %d: '%.*s'", lineno, (int)len, line_start);
-			if (profile) free(profile);
-			return EFI_OUT_OF_RESOURCES;
+			goto fail;
 		}
 		if (*cur) {
 			cur++;
@@ -73,8 +79,13 @@ EFI_STATUS embloader_load_cmdline_config(confignode *node, const char *buffer) {
 		}
 		line_start = cur;
 	}
-	if (profile) free(profile);
+	if (old_menu) {
+		if (!confignode_replace(&old_menu, menu)) goto fail;
+	} else if (!confignode_map_set(node, "menu", menu)) goto fail;
 	return EFI_SUCCESS;
+fail:
+	confignode_clean(menu);
+	return EFI_OUT_OF_RESOURCES;
 }
 
 
