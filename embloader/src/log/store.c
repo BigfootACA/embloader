@@ -50,8 +50,7 @@ bool log_append(struct log_item *item) {
 void log_flush_one_to(log_backend *backend, log_item *item, bool force) {
 	if (!item) return;
 	if (item->log_flushed && !force) return;
-	log_backend_write(backend, item);
-	item->log_flushed = true;
+	if (log_backend_write(backend, item) >= 0) item->log_flushed = true;
 }
 
 /**
