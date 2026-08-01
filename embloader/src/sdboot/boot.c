@@ -69,8 +69,10 @@ EFI_STATUS sdboot_boot_loader_invoke(sdboot_menu *menu, sdboot_boot_loader *load
 	if (!sdboot_boot_loader_check(loader)) return EFI_INVALID_PARAMETER;
 	if (loader->version) {
 		log_debug("sdboot loader use version %s as ktype", loader->version);
+		char *ktype = strdup(loader->version);
+		if (!ktype) return EFI_OUT_OF_RESOURCES;
 		if (g_embloader.ktype) free(g_embloader.ktype);
-		g_embloader.ktype = strdup(loader->version);
+		g_embloader.ktype = ktype;
 	}
 	if (loader->efi) {
 		EFI_DEVICE_PATH_PROTOCOL *dp;
@@ -80,8 +82,14 @@ EFI_STATUS sdboot_boot_loader_invoke(sdboot_menu *menu, sdboot_boot_loader *load
 			log_error("failed to create efi device path for %s", loader->efi);
 			return EFI_LOAD_ERROR;
 		}
-		char *args = loader->item && loader->item->bootargs ?
-			strdup(loader->item->bootargs) : list_to_string(loader->options, " ");
+		const char *args_source = loader->item ? loader->item->bootargs : NULL;
+		bool have_args = args_source || loader->options;
+		char *args = args_source ?
+			strdup(args_source) : list_to_string(loader->options, " ");
+		if (have_args && !args) {
+			FreePool(dp);
+			return EFI_OUT_OF_RESOURCES;
+		}
 		EFI_STATUS status = embloader_start_efi(dp, NULL, 0, args);
 		if (args) free(args);
 		FreePool(dp);
