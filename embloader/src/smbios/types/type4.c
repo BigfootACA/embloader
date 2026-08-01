@@ -360,7 +360,11 @@ static const char *processor_upgrade_to_string(int v) {
 	}
 }
 
-static void set_processor_feature_flags(confignode *m, PROCESSOR_FEATURE_FLAGS *f) {
+static void set_processor_feature_flags(
+	embloader_smbios *ctx,
+	confignode *m,
+	PROCESSOR_FEATURE_FLAGS *f
+) {
 	confignode *fm = confignode_new_map();
 	confignode_path_map_set(m, "features", fm);
 	confignode_path_set_bool(fm, "fpu", f->ProcessorFpu);
@@ -375,7 +379,11 @@ static void set_processor_feature_flags(confignode *m, PROCESSOR_FEATURE_FLAGS *
 	confignode_path_set_bool(fm, "apic", f->ProcessorApic);
 }
 
-static void set_processor_characteristics(confignode *m, PROCESSOR_CHARACTERISTIC_FLAGS *c) {
+static void set_processor_characteristics(
+	embloader_smbios *ctx,
+	confignode *m,
+	PROCESSOR_CHARACTERISTIC_FLAGS *c
+) {
 	confignode *cm = confignode_new_map();
 	confignode_path_map_set(m, "characteristics", cm);
 	confignode_path_set_bool(cm, "unknown", c->ProcessorUnknown);
@@ -417,11 +425,11 @@ void smbios_load_type4(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_PO
 		confignode_path_set_int(m, "thread_count", t->ThreadCount);
 		PROCESSOR_CHARACTERISTIC_FLAGS characteristics;
 		memcpy(&characteristics,&t->ProcessorCharacteristics,sizeof(characteristics));
-		set_processor_characteristics(m,&characteristics);
+		set_processor_characteristics(ctx,m,&characteristics);
 	}
 	PROCESSOR_FEATURE_FLAGS features;
 	memcpy(&features,&t->ProcessorId.FeatureFlags,sizeof(features));
-	set_processor_feature_flags(m,&features);
+	set_processor_feature_flags(ctx,m,&features);
 	if (ctx->version >= SMBIOS_VER(3,0)) {
 		int core_count = (t->CoreCount == 0xFF) ? t->CoreCount2 : t->CoreCount;
 		int enabled_core_count = (t->EnabledCoreCount == 0xFF) ? t->EnabledCoreCount2 : t->EnabledCoreCount;

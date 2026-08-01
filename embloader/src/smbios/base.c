@@ -10,6 +10,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include "str-utils.h"
+#define EMBLOADER_SMBIOS_CONFIG_IMPL
 #include "smbios.h"
 #include "log.h"
 #include "embloader.h"
@@ -244,11 +245,12 @@ void embloader_smbios_set_config_string(
 	SMBIOS_TABLE_STRING index
 ) {
 	char buff[256];
+	if (!ctx || ctx->config_error) return;
 	memset(buff, 0, sizeof(buff));
 	embloader_load_smbios_string(
 		ctx, ptr, index, buff, sizeof(buff)
 	);
-	confignode_path_set_string(node, path, buff);
+	embloader_smbios_config_set_string(ctx, node, path, buff);
 }
 
 void embloader_smbios_set_config_guid(
@@ -260,6 +262,7 @@ void embloader_smbios_set_config_guid(
 ) {
 	char buff[256];
 	GUID aligned;
+	if (!ctx || ctx->config_error) return;
 	UINTN start=(UINTN)ptr.Raw,address=(UINTN)guid;
 	if(!ptr.Raw||!guid||address<start)return;
 	UINTN offset=address-start;
@@ -267,7 +270,7 @@ void embloader_smbios_set_config_guid(
 	memcpy(&aligned,guid,sizeof(aligned));
 	memset(buff, 0, sizeof(buff));
 	AsciiSPrint(buff, sizeof(buff), "%g", &aligned);
-	confignode_path_set_string(node, path, buff);
+	embloader_smbios_config_set_string(ctx, node, path, buff);
 }
 
 bool embloader_load_smbios_string(
@@ -290,33 +293,34 @@ bool embloader_load_smbios_string(
 	return true;
 }
 
-void embloader_smbios_load_table(
+bool embloader_smbios_load_table(
 	embloader_smbios *ctx,
+	confignode *root,
 	uint8_t type,
 	const char *name,
 	void (*load)(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr)
 ) {
-	confignode *m;
-	confignode *s = g_embloader.sysinfo;
+	confignode *m, *hm;
 	SMBIOS_STRUCTURE_POINTER ptr;
 	SMBIOS_HANDLE handle = 0xFFFF;
 	int i = 0;
+	if (!ctx || !root || !name) return false;
 	while (true) {
 		ptr = embloader_get_smbios_by_type(ctx, type, handle);
-		if (!ptr.Raw) return;
-		if (!(m = confignode_new_map())) return;
+		if (!ptr.Raw) return true;
+		ctx->config_error = false;
+		if (!(m = confignode_new_map())) return false;
 		char buff[64];
 		while (true) {
-			snprintf(buff, sizeof(buff), "smbios.%s%d", name, i++);
-			if (!confignode_path_lookup(s, buff, false)) break;
+			snprintf(buff, sizeof(buff), "%s%d", name, i++);
+			if (!confignode_path_lookup(root, buff, false)) break;
 		}
-		confignode_path_map_set(s, buff, m);
-		confignode *hm = confignode_new_map();
-		confignode_path_map_set(m, "header", hm);
-		confignode_path_set_int(hm, "type", ptr.Hdr->Type);
-		confignode_path_set_int(hm, "length", ptr.Hdr->Length);
-		confignode_path_set_int(hm, "handle", ptr.Hdr->Handle);
-		if(load){
+		hm = confignode_new_map();
+		embloader_smbios_config_attach(ctx, m, "header", hm);
+		embloader_smbios_config_set_int(ctx, hm, "type", ptr.Hdr->Type);
+		embloader_smbios_config_set_int(ctx, hm, "length", ptr.Hdr->Length);
+		embloader_smbios_config_set_int(ctx, hm, "handle", ptr.Hdr->Handle);
+		if (load && !ctx->config_error) {
 			union{
 				UINT64 align;
 				UINT8 raw[256];
@@ -329,6 +333,12 @@ void embloader_smbios_load_table(
 			ctx->active_record=NULL;
 			ctx->active_copy=NULL;
 		}
+		if (ctx->config_error) {
+			confignode_clean(m);
+			return false;
+		}
+		if (!embloader_smbios_config_attach(ctx, root, buff, m))
+			return false;
 		handle = ptr.Hdr->Handle;
 	}
 }

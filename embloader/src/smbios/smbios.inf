@@ -23,6 +23,7 @@
 
 [Sources]
   base.c
+  config.c
   load.c
   types.c
   types/type0.c

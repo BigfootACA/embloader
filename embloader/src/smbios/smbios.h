@@ -16,6 +16,7 @@ struct smbios_table_load {
 struct embloader_smbios{
 	UINT16 major,minor;
 	UINT32 version;
+	bool config_error;
 	SMBIOS_TABLE_ENTRY_POINT*smbios2;
 	SMBIOS_TABLE_3_0_ENTRY_POINT*smbios3;
 	UINTN table_start;
@@ -59,8 +60,45 @@ extern bool embloader_load_smbios_string(
 	char*buff,
 	size_t size
 );
-extern void embloader_smbios_load_table(
+extern bool embloader_smbios_config_set_int(
 	embloader_smbios *ctx,
+	confignode *node,
+	const char *path,
+	int64_t value
+);
+extern bool embloader_smbios_config_set_string(
+	embloader_smbios *ctx,
+	confignode *node,
+	const char *path,
+	const char *value
+);
+extern bool embloader_smbios_config_set_string_fmt(
+	embloader_smbios *ctx,
+	confignode *node,
+	const char *path,
+	const char *format,
+	...
+);
+extern bool embloader_smbios_config_set_bool(
+	embloader_smbios *ctx,
+	confignode *node,
+	const char *path,
+	bool value
+);
+extern bool embloader_smbios_config_attach(
+	embloader_smbios *ctx,
+	confignode *node,
+	const char *path,
+	confignode *sub
+);
+extern bool embloader_smbios_config_append(
+	embloader_smbios *ctx,
+	confignode *array,
+	confignode *sub
+);
+extern bool embloader_smbios_load_table(
+	embloader_smbios *ctx,
+	confignode *root,
 	uint8_t type,
 	const char *name,
 	void (*load)(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr)
@@ -114,5 +152,20 @@ extern void smbios_load_type43(embloader_smbios *ctx, confignode *m, SMBIOS_STRU
 extern void smbios_load_type44(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
 extern void smbios_load_type45(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
 extern void smbios_load_type46(embloader_smbios *ctx, confignode *m, SMBIOS_STRUCTURE_POINTER ptr);
+
+#ifndef EMBLOADER_SMBIOS_CONFIG_IMPL
+#define confignode_path_set_int(node, path, value) \
+	embloader_smbios_config_set_int(ctx, node, path, value)
+#define confignode_path_set_string(node, path, value) \
+	embloader_smbios_config_set_string(ctx, node, path, value)
+#define confignode_path_set_string_fmt(node, path, ...) \
+	embloader_smbios_config_set_string_fmt(ctx, node, path, __VA_ARGS__)
+#define confignode_path_set_bool(node, path, value) \
+	embloader_smbios_config_set_bool(ctx, node, path, value)
+#define confignode_path_map_set(node, path, sub) \
+	embloader_smbios_config_attach(ctx, node, path, sub)
+#define confignode_array_append(node, sub) \
+	embloader_smbios_config_append(ctx, node, sub)
+#endif
 
 #endif
