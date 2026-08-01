@@ -2,7 +2,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
-#include <libfdt.h>
 #include "fdt-utils.h"
 
 int fdt_getprop_u8(fdt fdt, int off, const char* name, int id, uint8_t* val) {
@@ -46,14 +45,16 @@ int fdt_getprop_u32(fdt fdt, int off, const char* name, int id, uint32_t* val) {
 
 int fdt_getprop_u64(fdt fdt, int off, const char* name, int id, uint64_t* val) {
 	int length = 0;
-	const uint64_t* prop;
+	const uint8_t* prop;
+	fdt64_t raw;
 	if (val) *val = 0;
 	if (!fdt) return -FDT_ERR_NOTFOUND;
 	prop = fdt_getprop(fdt, off, name, &length);
 	if (length < 0) return length;
 	if (length % sizeof(uint64_t) != 0) return -FDT_ERR_BADVALUE;
 	if (id < 0 || id >= length / (int) sizeof(uint64_t)) return -FDT_ERR_BADOFFSET;
-	if (val) *val = fdt64_to_cpu(prop[id]);
+	memcpy(&raw,prop+(size_t)id*sizeof(raw),sizeof(raw));
+	if (val) *val = fdt64_to_cpu(raw);
 	return 0;
 }
 
@@ -152,72 +153,81 @@ static bool fdt_apply_cells(int32_t cell, uint64_t* out, const void* prop) {
 	}
 }
 
+static bool fdt_valid_cells(int32_t cells) {
+	return cells>=0&&cells<=2;
+}
+
 bool fdt_get_reg(fdt fdt, int off, int index, uint64_t* base, uint64_t* size) {
-	const void* prop;
-	int32_t ac = -1, sc = -1, item, len = 0;
+	const uint8_t* prop;
+	const uint8_t* cursor;
+	int parent,len=0;
+	int32_t ac,sc;
+	size_t cells,item,offset;
 	if (base) *base = 0;
 	if (size) *size = 0;
 	if (!fdt || off < 0 || index < 0) return false;
 
-	// load address cells and size cells
-	if (ac <= 0) ac = fdt_get_address_cells(fdt, off);
-	if (sc <= 0) sc = fdt_get_size_cells(fdt, off);
+	parent=fdt_parent_offset(fdt,off);
+	if(parent<0)return false;
+	ac=fdt_get_address_cells(fdt,parent);
+	sc=fdt_get_size_cells(fdt,parent);
+	if(!fdt_valid_cells(ac)||!fdt_valid_cells(sc))return false;
+	cells=(size_t)ac+(size_t)sc;
+	if(cells==0)return false;
+	item=cells*sizeof(fdt32_t);
 
 	prop = fdt_getprop(fdt, off, "reg", &len);
-	item = (ac + sc) * sizeof(int32_t);
-	if (item <= 0) return false;
-	if (len < item) return false;
+	if(!prop||len<0||(size_t)len<item||(size_t)len%item!=0)return false;
+	if((size_t)index>=(size_t)len/item)return false;
+	offset=(size_t)index*item;
+	cursor=prop+offset;
 
-	// in range
-	if (index >= len / item) return false;
-	prop += item * index;
+	if(base&&!fdt_apply_cells(ac,base,cursor))return false;
+	cursor+=(size_t)ac*sizeof(fdt32_t);
 
-	// calc memory base
-	if (base && !fdt_apply_cells(ac, base, prop)) return false;
-	prop += ac * sizeof(fdt32_t);
-
-	// calc memory size
-	if (size && !fdt_apply_cells(sc, size, prop)) return false;
-	prop += sc * sizeof(fdt32_t);
+	if(size&&!fdt_apply_cells(sc,size,cursor))return false;
 
 	return true;
 }
 
 bool fdt_get_ranges(fdt fdt, int off, int index, uint64_t* base, uint64_t* target, uint64_t* size) {
-	const void* prop;
+	const uint8_t* prop;
+	const uint8_t* cursor;
 	int parent;
-	int32_t pc = -1, ac = -1, sc = -1, item, len = 0;
+	int32_t pc,ac,sc;
+	int len=0;
+	size_t cells,item,offset;
 	if (base) *base = 0;
 	if (target) *target = 0;
 	if (size) *size = 0;
 	if (!fdt || off < 0 || index < 0) return false;
 
-	// load address cells and size cells
-	if (ac <= 0) ac = fdt_get_address_cells(fdt, off);
-	if (sc <= 0) sc = fdt_get_size_cells(fdt, off);
-	if ((parent = fdt_parent_offset(fdt, off)) >= 0)
-		pc = fdt_get_address_cells(fdt, parent);
+	parent=fdt_parent_offset(fdt,off);
+	if(parent<0)return false;
+	ac=fdt_get_address_cells(fdt,off);
+	sc=fdt_get_size_cells(fdt,off);
+	pc=fdt_get_address_cells(fdt,parent);
+	if(
+		!fdt_valid_cells(ac)||!fdt_valid_cells(sc)||
+		!fdt_valid_cells(pc)
+	)return false;
+	cells=(size_t)ac+(size_t)pc+(size_t)sc;
+	if(cells==0)return false;
+	item=cells*sizeof(fdt32_t);
 
 	prop = fdt_getprop(fdt, off, "ranges", &len);
-	item = (pc + ac + sc) * sizeof(int32_t);
-	if (item <= 0) return false;
-	if (len < item) return false;
+	if(!prop||len<0||(size_t)len<item||(size_t)len%item!=0)return false;
+	if((size_t)index>=(size_t)len/item)return false;
+	offset=(size_t)index*item;
+	cursor=prop+offset;
 
-	// in range
-	if (index >= len / item) return false;
-	prop += item * index;
+	if(base&&!fdt_apply_cells(ac,base,cursor))return false;
+	cursor+=(size_t)ac*sizeof(fdt32_t);
 
-	// calc range base
-	if (base && !fdt_apply_cells(ac, base, prop)) return false;
-	prop += ac * sizeof(fdt32_t);
+	if(target&&!fdt_apply_cells(pc,target,cursor))return false;
+	cursor+=(size_t)pc*sizeof(fdt32_t);
 
-	// calc range target
-	if (target && !fdt_apply_cells(pc, target, prop)) return false;
-	prop += pc * sizeof(fdt32_t);
-
-	// calc range size
-	if (size && !fdt_apply_cells(sc, size, prop)) return false;
-	prop += sc * sizeof(fdt32_t);
+	if(size&&!fdt_apply_cells(sc,size,cursor))return false;
 
 	return true;
 }
