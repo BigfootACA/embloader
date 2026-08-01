@@ -11,6 +11,20 @@ struct log_file_ctx {
 	encoding encode;
 };
 
+static int log_file_write_all(
+	EFI_FILE_PROTOCOL *file,
+	const void *buffer,
+	UINTN size
+) {
+	EFI_STATUS status;
+	UINTN written = size;
+	if (!file || (!buffer && size > 0)) return -1;
+	if (size == 0) return 0;
+	status = file->Write(file, &written, (void*) buffer);
+	if (EFI_ERROR(status) || written != size) return -1;
+	return 0;
+}
+
 static int log_file_init(log_backend *backend) {
 	EFI_STATUS status;
 	struct log_file_ctx *ctx;
@@ -48,23 +62,32 @@ static int log_file_init(log_backend *backend) {
 		goto fail;
 	}
 	if (ctx->truncate) {
-		efi_file_set_size(file, 0);
-		file->SetPosition(file, 0);
+		status = efi_file_set_size(file, 0);
+		if (!EFI_ERROR(status)) status = file->SetPosition(file, 0);
+	} else status = file->SetPosition(file, MAX_UINT64);
+	if (EFI_ERROR(status)) {
+		log_warning(
+			"failed to prepare log file %s: %s",
+			path, efi_status_to_string(status)
+		);
+		goto fail;
 	}
 	free(path);
 	ctx->file = file;
 	return 0;
 fail:
+	if (file) file->Close(file);
 	if (path) free(path);
 	return -1;
 }
 
 static int log_file_deinit(log_backend *backend) {
 	struct log_file_ctx *ctx;
+	EFI_STATUS status = EFI_SUCCESS;
 	if (!backend || !(ctx = backend->ctx)) return -1;
-	if (ctx->file) ctx->file->Close(ctx->file);
+	if (ctx->file) status = ctx->file->Close(ctx->file);
 	ctx->file = NULL;
-	return 0;
+	return EFI_ERROR(status) ? -1 : 0;
 }
 
 static int log_file_writer(log_backend *backend, log_item *item) {
@@ -93,17 +116,32 @@ static int log_file_writer(log_backend *backend, log_item *item) {
 			};
 			while (enc.in.src_size > 0) {
 				st = encode_convert(&enc);
-				if (EFI_ERROR(st)) break;
-				if (enc.out.dst_wrote == 0) break;
+				if (
+					enc.out.src_used == 0 || enc.out.dst_wrote == 0 ||
+					enc.out.src_used > enc.in.src_size ||
+					enc.out.dst_wrote > sizeof(buff)
+				) goto done;
+				if (
+					(st == EFI_SUCCESS &&
+					 enc.out.src_used != enc.in.src_size) ||
+					(st == EFI_OUT_OF_RESOURCES &&
+					 enc.out.src_used == enc.in.src_size) ||
+					(st != EFI_SUCCESS && st != EFI_OUT_OF_RESOURCES)
+				) goto done;
 				wlen = enc.out.dst_wrote;
-				ctx->file->Write(ctx->file, &wlen, buff);
-				enc.in.src_ptr = enc.out.src_end;
+				if (log_file_write_all(ctx->file, buff, wlen) < 0)
+					goto done;
+				enc.in.src_ptr =
+					(const UINT8*) enc.in.src_ptr + enc.out.src_used;
 				enc.in.src_size -= enc.out.src_used;
 			}
-		} else ctx->file->Write(ctx->file, &len, formatted);
-		ctx->file->Flush(ctx->file);
+		} else if (log_file_write_all(ctx->file, formatted, len) < 0)
+			goto done;
+		st = ctx->file->Flush(ctx->file);
+		if (EFI_ERROR(st)) goto done;
 		ret = 0;
 	}
+done:
 	if (formatted) free(formatted);
 	if (format) free(format);
 	return ret;
