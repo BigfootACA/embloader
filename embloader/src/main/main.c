@@ -40,7 +40,10 @@ EFI_STATUS EFIAPI efi_main(
 	if (!strstr(bootloader_info, "####")) return EFI_LOAD_ERROR;
 	log_info("embloader (Embedded Bootloader) version " EMBLOADER_VERSION);
 	log_debug("function efi_main at %p", efi_main);
-	embloader_init();
+	if (!embloader_init()) {
+		log_error("failed to initialize embloader");
+		return EFI_OUT_OF_RESOURCES;
+	}
 	g_embloader.start_time = ticks_usec();
 	find_embloader_folder(&g_embloader.dir);
 	if (g_embloader.dir.dir && !embloader_load_configs())

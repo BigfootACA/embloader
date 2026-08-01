@@ -49,7 +49,11 @@ bool embloader_init() {
 	g_embloader.sysinfo = confignode_new_map();
 	if (!g_embloader.sysinfo) return false;
 	g_embloader.config = confignode_new_map();
-	if (!g_embloader.config) return false;
+	if (!g_embloader.config) {
+		confignode_clean(g_embloader.sysinfo);
+		g_embloader.sysinfo = NULL;
+		return false;
+	}
 	return true;
 }
 
