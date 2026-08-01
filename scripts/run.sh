@@ -6,10 +6,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 BUILD_DIR="$PROJECT_ROOT/build/disk"
 IMAGE_NAME="embloader-boot.img"
-IMAGE_SIZE="64M"
-MOUNT_POINT="/tmp/embloader_mount"
+IMAGE_SIZE_MIB=128
+MOUNT_POINT=""
 IMAGE_PATH="$BUILD_DIR/$IMAGE_NAME"
-if [ -z "$EDK2_TARGET" ]; then
+LOOP_DEVICE=""
+if [ -z "${EDK2_TARGET:-}" ]; then
 	export EDK2_TARGET=RELEASE
 fi
 if [ -z "$ARCH" ]; then
@@ -26,9 +27,15 @@ typeset -l EDK2_LARCH
 export EDK2_LARCH="$EDK2_ARCH"
 
 function cleanup() {
-	mountpoint -q "$MOUNT_POINT" 2>/dev/null && umount "$MOUNT_POINT" || true
-	[ -d "$MOUNT_POINT" ] && rmdir "$MOUNT_POINT" || true
-	[ -n "$LOOP_DEVICE" ] && losetup -d "$LOOP_DEVICE" 2>/dev/null || true
+	if [ -n "$MOUNT_POINT" ] && mountpoint -q "$MOUNT_POINT" 2>/dev/null; then
+		umount "$MOUNT_POINT" || true
+	fi
+	if [ -n "$MOUNT_POINT" ] && [ -d "$MOUNT_POINT" ]; then
+		rmdir "$MOUNT_POINT" || true
+	fi
+	if [ -n "$LOOP_DEVICE" ]; then
+		losetup -d "$LOOP_DEVICE" 2>/dev/null || true
+	fi
 }
 
 trap cleanup EXIT
@@ -54,7 +61,7 @@ function pack_boot(){
 	mkdir -p "$BUILD_DIR"
 
 	rm -f "$IMAGE_PATH"
-	dd if=/dev/zero of="$IMAGE_PATH" bs=1M count=128
+	dd if=/dev/zero of="$IMAGE_PATH" bs=1M count="$IMAGE_SIZE_MIB"
 
 	parted -s "$IMAGE_PATH" mklabel gpt
 	parted -s "$IMAGE_PATH" mkpart primary fat32 1MiB 100%
@@ -63,7 +70,7 @@ function pack_boot(){
 	LOOP_DEVICE=$(losetup --show -fP "$IMAGE_PATH")
 	mkfs.fat -F32 "${LOOP_DEVICE}p1"
 
-	mkdir -p "$MOUNT_POINT"
+	MOUNT_POINT="$(mktemp -d /tmp/embloader-mount.XXXXXX)"
 	mount "${LOOP_DEVICE}p1" "$MOUNT_POINT"
 
 	mkdir -p "$MOUNT_POINT/EFI/BOOT"
@@ -116,6 +123,8 @@ function pack_boot(){
 
 	sync
 	umount "$MOUNT_POINT"
+	rmdir "$MOUNT_POINT"
+	MOUNT_POINT=""
 	losetup -d "$LOOP_DEVICE"
 	LOOP_DEVICE=""
 
