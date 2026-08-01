@@ -319,9 +319,11 @@ EFI_STATUS sdboot_boot_load_root(sdboot_menu *menu, embloader_dir *dir) {
 			newent = entry;
 			log_debug("use default entry %s from sdboot config", entry);		
 		}  else log_debug("use auto entry %s for %s", newent, entry);
+		char *replacement = strdup(newent);
+		if (!replacement) return EFI_OUT_OF_RESOURCES;
 		if (g_embloader.menu->default_entry)
 			free(g_embloader.menu->default_entry);
-		g_embloader.menu->default_entry = strdup(newent);
+		g_embloader.menu->default_entry = replacement;
 	}
 	return EFI_SUCCESS;
 }
