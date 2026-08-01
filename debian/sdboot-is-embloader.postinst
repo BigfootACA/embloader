@@ -136,7 +136,7 @@ restore_esp_loader() {
 }
 
 case "$1" in
-    configure)
+    configure|abort-upgrade|abort-remove|abort-deconfigure)
         ARCH=$(dpkg --print-architecture)
         case "$ARCH" in
             amd64)
