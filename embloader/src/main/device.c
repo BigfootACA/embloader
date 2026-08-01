@@ -3,24 +3,37 @@
 
 static bool embloader_match_device(confignode *node) {
 	if (!node) return false;
-	char *name = confignode_path_get_string(node, "name", NULL, NULL);
-	if (!name) return false;
+	bool ok = false;
+	char *name = confignode_path_get_string(node, "name", NULL, &ok);
+	list *profiles_new = NULL;
+	if (!ok || !name) goto fail;
 	confignode *match = confignode_path_lookup(node, "match", false);
 	if (match && !embloader_try_matches(match)) goto fail;
-	log_info("Found matched device: %s", name);
-	if (g_embloader.device_name)
-		free(g_embloader.device_name);
-	g_embloader.device_name = name;
 	confignode *profiles = confignode_path_lookup(node, "profiles", false);
 	confignode_foreach(profile, profiles) {
-		char *v = confignode_value_get_string(profile.node, NULL, NULL);
-		if (!v) continue;
+		if (!confignode_is_type(profile.node, CONFIGNODE_TYPE_VALUE)) continue;
+		char *v = confignode_value_get_string(profile.node, NULL, &ok);
+		if (!ok || !v) {
+			free(v);
+			goto fail;
+		}
+		if (list_obj_add_new(&profiles_new, v) != 0) {
+			free(v);
+			goto fail;
+		}
 		log_debug("Pick profile %s", v);
-		list_obj_add_new(&g_embloader.profiles, v);
 	}
+	char *name_old = g_embloader.device_name;
+	list *profiles_old = g_embloader.profiles;
+	g_embloader.device_name = name;
+	g_embloader.profiles = profiles_new;
+	if (name_old) free(name_old);
+	if (profiles_old) list_free_all_def(profiles_old);
+	log_info("Found matched device: %s", name);
 	return true;
 fail:
-	if (name) free(name);
+	free(name);
+	if (profiles_new) list_free_all_def(profiles_new);
 	return false;
 }
 
