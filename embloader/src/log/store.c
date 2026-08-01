@@ -28,8 +28,9 @@ static void log_size_limit_check() {
  */
 bool log_append(struct log_item *item) {
 	int ret;
-	if (!item || item->size >= log_size_limit) return false;
+	if (!item) return false;
 	log_size_limit_check();
+	if (item->size >= log_size_limit) return false;
 	item->log_flushed = false;
 	ret = list_obj_add_new(&log_items, item);
 	if (ret < 0) return false;

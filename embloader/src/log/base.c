@@ -117,11 +117,20 @@ log_item* log_item_create(
  * and flushes any buffered log items to newly created backends.
  */
 void log_init() {
+	bool limit_ok = false;
+	int64_t configured_limit;
 	confignode *r = g_embloader.config;
 	if (confignode_path_get_bool(r, "log.defaults", true, NULL))
 		log_backend_create(&log_backend_stdio, NULL, NULL);
 	confignode *backends = confignode_path_lookup(r, "log.backends", false);
 	if (backends) log_backends_init(backends);
-	log_size_limit = confignode_path_get_int(r, "log.size-limit", log_size_limit, NULL);
+	configured_limit = confignode_path_get_int(
+		r, "log.size-limit", (int64_t) log_size_limit, &limit_ok
+	);
+	if (
+		limit_ok && configured_limit >= 0 &&
+		(uint64_t) configured_limit <= (uint64_t) SIZE_MAX
+	) log_size_limit = (size_t) configured_limit;
+	else if (limit_ok) log_warning("invalid log size limit, using default");
 	log_info("log system initialized");
 }
