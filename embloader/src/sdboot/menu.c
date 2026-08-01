@@ -110,7 +110,7 @@ static EFI_STATUS sdboot_boot_add_auto_items(list **loaders, int64_t offset) {
 	EFI_STATUS status;
 	if (!loaders || !g_embloader.menu || !g_embloader.sdboot)
 		return EFI_NOT_READY;
-	bool auto_firmware = g_embloader.sdboot->menu.auto_firmware;
+	bool auto_firmware = g_embloader.sdboot->menu.auto_firmware && efi_is_setup_supported();
 	bool auto_reboot = g_embloader.sdboot->menu.auto_reboot;
 	bool auto_poweroff = g_embloader.sdboot->menu.auto_poweroff;
 	sdboot_boot_find_auto_items(
