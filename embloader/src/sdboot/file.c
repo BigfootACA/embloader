@@ -5,6 +5,17 @@
 #include "efi-utils.h"
 #include "str-utils.h"
 
+static bool sdboot_file_info_name_is_valid(EFI_FILE_INFO *info, UINTN size) {
+	UINTN offset = OFFSET_OF(EFI_FILE_INFO, FileName);
+	if (!info || size < offset + sizeof(CHAR16)) return false;
+	UINTN bytes = size - offset;
+	if (bytes % sizeof(CHAR16) != 0) return false;
+	UINTN chars = bytes / sizeof(CHAR16);
+	for (UINTN i = 0; i < chars; i++)
+		if (info->FileName[i] == 0) return true;
+	return false;
+}
+
 /**
  * @brief Load and parse a single sdboot configuration file.
  *
@@ -139,18 +150,21 @@ EFI_STATUS sdboot_boot_load_entries_folder(
 	embloader_dir *dir,
 	const char *folder
 ) {
-	EFI_STATUS status;
+	EFI_STATUS status, failure = EFI_SUCCESS;
 	EFI_FILE_INFO *info = NULL;
 	EFI_FILE_PROTOCOL *fp = NULL;
 	UINTN infosz = 0, ps;
 	bool have_success = false;
+	sdboot_menu pending;
 	if (!menu || !dir || !folder) return EFI_INVALID_PARAMETER;
+	sdboot_menu_init(&pending);
 	status = efi_open(
 		dir->root, &fp, folder,
 		EFI_FILE_MODE_READ,
 		EFI_FILE_DIRECTORY
 	);
 	if (EFI_ERROR(status) || !fp) {
+		if (!EFI_ERROR(status)) status = EFI_DEVICE_ERROR;
 		log_error(
 			"open sdboot boot entries folder %s failed: %s",
 			folder, efi_status_to_string(status)
@@ -165,14 +179,14 @@ EFI_STATUS sdboot_boot_load_entries_folder(
 		else if (status == EFI_BUFFER_TOO_SMALL) {
 			if (ps <= infosz) {
 				log_error("filesystem driver returned bad size for file info");
-				status = EFI_DEVICE_ERROR;
+				failure = EFI_DEVICE_ERROR;
 				break;
 			}
 			infosz = ps;
 			if (info) free(info);
 			if (!(info = malloc(infosz))) {
 				log_error("failed to allocate memory for file info");
-				status = EFI_OUT_OF_RESOURCES;
+				failure = EFI_OUT_OF_RESOURCES;
 				break;
 			}
 			continue;
@@ -181,33 +195,60 @@ EFI_STATUS sdboot_boot_load_entries_folder(
 				"failed to read file info: %s",
 				efi_status_to_string(status)
 			);
+			failure = status;
 			break;
 		} else if (ps == 0) break;
-		if (!info || infosz < OFFSET_OF(EFI_FILE_INFO, FileName) + sizeof(CHAR16)) {
+		if (ps > infosz || !sdboot_file_info_name_is_valid(info, ps)) {
 			log_warning("bad filesystem driver for read folder");
-			status = EFI_DEVICE_ERROR;
+			failure = EFI_DEVICE_ERROR;
 			break;
 		}
-		if (!info->FileName[0] ||info->FileName[0] == L'.') continue;
+		if (!info->FileName[0] || info->FileName[0] == L'.') continue;
 		if (info->Attribute & EFI_FILE_DIRECTORY) continue;
 		char *fname = encode_utf16_to_utf8(info->FileName);
-		if (!fname) continue;
+		if (!fname) {
+			log_error("failed to convert sdboot entry filename");
+			failure = EFI_OUT_OF_RESOURCES;
+			break;
+		}
 		size_t flen = strlen(fname);
 		if (!endwithsi(fname, flen, ".conf")) {
 			free(fname);
 			continue;
 		}
-		status = sdboot_boot_load_file(menu, dir, fp, fname, true);
+		status = sdboot_boot_load_file(&pending, dir, fp, fname, true);
 		free(fname);
 		if (!EFI_ERROR(status)) have_success = true;
-		else log_error("failed to load sdboot boot entry file: %s", efi_status_to_string(status));
+		else {
+			log_error(
+				"failed to load sdboot boot entry file: %s",
+				efi_status_to_string(status)
+			);
+			if (status != EFI_LOAD_ERROR && status != EFI_NOT_FOUND) {
+				failure = status;
+				break;
+			}
+		}
 	}
 	if (fp) fp->Close(fp);
 	if (info) free(info);
+	if (EFI_ERROR(failure)) {
+		sdboot_menu_clean(&pending);
+		return failure;
+	}
 	if (!have_success) {
 		log_error("no valid sdboot boot entry files found");
+		sdboot_menu_clean(&pending);
 		return EFI_NOT_FOUND;
 	}
+	if (pending.loaders) {
+		if (list_obj_add(&menu->loaders, pending.loaders) != 0) {
+			sdboot_menu_clean(&pending);
+			return EFI_DEVICE_ERROR;
+		}
+		pending.loaders = NULL;
+	}
+	sdboot_menu_clean(&pending);
 	return EFI_SUCCESS;
 }
 
