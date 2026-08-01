@@ -1,3 +1,4 @@
+#include <errno.h>
 #include <string.h>
 #include "internal.h"
 
@@ -46,8 +47,12 @@ confignode* confignode_from_json(json_object* obj) {
 			return confignode_new_bool(json_object_get_boolean(obj));
 		case json_type_double:
 			return confignode_new_float(json_object_get_double(obj));
-		case json_type_int:
-			return confignode_new_int(json_object_get_int64(obj));
+		case json_type_int: {
+			errno = 0;
+			int64_t value = json_object_get_int64(obj);
+			if (errno == ERANGE) return NULL;
+			return confignode_new_int(value);
+		}
 		case json_type_string:
 			return confignode_new_string(json_object_get_string(obj));
 		default:
