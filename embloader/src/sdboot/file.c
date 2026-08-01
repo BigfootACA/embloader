@@ -309,12 +309,16 @@ EFI_STATUS sdboot_boot_load_root(sdboot_menu *menu, embloader_dir *dir) {
 		embloader_loader *l;
 		char *entry = menu->menu.default_entry, *newent = NULL;
 		log_debug("found default entry %s in sdboot config", entry);
-		if (strcasecmp(entry, "auto-firmware") == 0 && (l = find_efisetup()))
-			newent = l->name;
-		else if (strcasecmp(entry, "auto-reboot") == 0 && (l = find_reboot()))
-			newent = l->name;
-		else if (strcasecmp(entry, "auto-poweroff") == 0 && (l = find_shutdown()))
-			newent = l->name;
+		if (strcasecmp(entry, "auto-firmware") == 0) {
+			l = find_efisetup();
+			newent = l ? l->name : "sdboot-auto-firmware";
+		} else if (strcasecmp(entry, "auto-reboot") == 0) {
+			l = find_reboot();
+			newent = l ? l->name : "sdboot-auto-reboot";
+		} else if (strcasecmp(entry, "auto-poweroff") == 0) {
+			l = find_shutdown();
+			newent = l ? l->name : "sdboot-auto-shutdown";
+		}
 		if (!newent){
 			newent = entry;
 			log_debug("use default entry %s from sdboot config", entry);		
