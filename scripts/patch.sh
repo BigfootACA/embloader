@@ -1,10 +1,9 @@
 #!/bin/bash
-set -e
+set -eo pipefail
 
 function patch_submodules() {
-	grep '^\[submodule ".*"\]$' < .gitmodules |\
-	sed -E 's,^\[submodule "(.*)"\]$,\1,g' |\
-	while read -r submodule; do
+	git config --file .gitmodules --get-regexp '^submodule\..*\.path$' | \
+	while read -r _ submodule; do
 		submod_id="${submodule//\//-}"
 		for patch in "patches/$submod_id"/*.patch; do
 			if ! [ -f "$patch" ]; then
@@ -20,7 +19,7 @@ function patch_submodules() {
 }
 
 function check_tool() {
-	if ! which "$1" &>/dev/null; then
+	if ! command -v "$1" &>/dev/null; then
 		echo "$1 not found" >&2
 		exit 1
 	fi
@@ -28,11 +27,8 @@ function check_tool() {
 
 function main() {
 	check_tool git
-	check_tool awk
-	check_tool sed
-	check_tool grep
 	check_tool patch
-	if ! [ -d .git ]; then
+	if ! [ -f .gitmodules ]; then
 		exit 0
 	fi
 	patch_submodules
