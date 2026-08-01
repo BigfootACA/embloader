@@ -13,15 +13,7 @@ static log_level confignode_path_get_log_level(
 	char *str = confignode_path_get_string(node, path, NULL, &vok);
 	if (!str) return def;
 	log_level level;
-	if (!log_level_from_str(str, &level)) {
-		char buff[256];
-		confignode_path_get(node, buff, sizeof(buff));
-		log_warning(
-			"invalid log level string '%s' at path '%s%s%s'",
-			str, buff, buff[0] ? "." : "", path
-		);
-		level = def;
-	}
+	if (!log_level_from_str(str, &level)) level = def;
 	if (ok) *ok = vok;
 	free(str);
 	return level;
