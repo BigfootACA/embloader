@@ -66,16 +66,34 @@ validate_managed_path() {
     fi
 }
 
-secure_boot_enabled() {
+secure_boot_status() {
+    if [ "${EMBLOADER_ASSUME_SECURE_BOOT_DISABLED:-0}" = 1 ]; then
+        return 1
+    fi
     for SECURE_BOOT_VAR in /sys/firmware/efi/efivars/SecureBoot-*; do
         [ -r "$SECURE_BOOT_VAR" ] || continue
-        SECURE_BOOT_VALUE=$(od -An -tu1 -j4 -N1 "$SECURE_BOOT_VAR" 2>/dev/null) || continue
-        [ "$SECURE_BOOT_VALUE" -eq 1 ] && return 0
-        return 1
+        SECURE_BOOT_VALUE=$(od -An -tu1 -j4 -N1 "$SECURE_BOOT_VAR" 2>/dev/null) || return 2
+        [ -n "$SECURE_BOOT_VALUE" ] || return 2
+        case "$SECURE_BOOT_VALUE" in
+            *[!0-9[:space:]]*) return 2 ;;
+        esac
+        if [ "$SECURE_BOOT_VALUE" -eq 1 ]; then
+            return 0
+        elif [ "$SECURE_BOOT_VALUE" -eq 0 ]; then
+            return 1
+        fi
+        return 2
     done
-    command -v bootctl >/dev/null 2>&1 || return 1
-    LC_ALL=C bootctl status --no-pager 2>/dev/null | \
-        grep -Eq '^[[:space:]]*Secure Boot:[[:space:]]+enabled'
+    command -v bootctl >/dev/null 2>&1 || return 2
+    SECURE_BOOT_OUTPUT=$(LC_ALL=C bootctl status --no-pager 2>/dev/null) || return 2
+    if printf '%s\n' "$SECURE_BOOT_OUTPUT" | \
+            grep -Eq '^[[:space:]]*Secure Boot:[[:space:]]+enabled'; then
+        return 0
+    elif printf '%s\n' "$SECURE_BOOT_OUTPUT" | \
+            grep -Eq '^[[:space:]]*Secure Boot:[[:space:]]+disabled'; then
+        return 1
+    fi
+    return 2
 }
 
 divert_path() {
@@ -148,7 +166,15 @@ case "$1" in
         validate_managed_path "$SDBOOT_PATH"
         validate_managed_path "$SIGNED_SDBOOT_PATH"
 
-        if secure_boot_enabled; then
+        if secure_boot_status; then
+            SECURE_BOOT_STATE=enabled
+        else
+            case $? in
+                1) SECURE_BOOT_STATE=disabled ;;
+                *) SECURE_BOOT_STATE=unknown ;;
+            esac
+        fi
+        if [ "$SECURE_BOOT_STATE" != disabled ]; then
             restore_managed_path "$SDBOOT_PATH"
             restore_managed_path "$SIGNED_SDBOOT_PATH"
             if command -v bootctl >/dev/null 2>&1; then
@@ -164,7 +190,12 @@ case "$1" in
                     restore_esp_loader "$ESP_PATH/EFI/BOOT/$BOOT_EFI" "$RESTORE_SOURCE"
                 fi
             fi
-            echo "Refusing to replace systemd-boot with an unsigned embloader while Secure Boot is enabled" >&2
+            if [ "$SECURE_BOOT_STATE" = enabled ]; then
+                echo "Refusing to replace systemd-boot with an unsigned embloader while Secure Boot is enabled" >&2
+            else
+                echo "Cannot determine Secure Boot state; refusing to install unsigned embloader" >&2
+                echo "Set EMBLOADER_ASSUME_SECURE_BOOT_DISABLED=1 only if Secure Boot is disabled" >&2
+            fi
             exit 1
         fi
 
