@@ -248,14 +248,19 @@ static EFI_STATUS allocate_legacy_kernel_pages(UINTN pages, void** allocation) {
 
 static EFI_STATUS prepare_kernel(
 	const linux_data* data, void** allocation, void** kernel,
-	UINTN* allocation_pages, UINTN* image_size
+	UINTN* allocation_pages, UINTN* image_size, bool* allocation_aligned
 ) {
 	const struct arm64_image_header* header;
 	EFI_STATUS status;
 	UINTN footprint, pages;
 
-	if (!data || !data->kernel || data->kernel_size < sizeof(*header))
+	if (
+		!data || !data->kernel || data->kernel_size < sizeof(*header) ||
+		!allocation || !kernel || !allocation_pages || !image_size ||
+		!allocation_aligned
+	)
 		return EFI_LOAD_ERROR;
+	*allocation_aligned = false;
 	header = data->kernel;
 	if (header->magic != ARM64_IMAGE_MAGIC) {
 		log_error("kernel is not a valid AArch64 Linux Image");
@@ -272,6 +277,7 @@ static EFI_STATUS prepare_kernel(
 	if (header->flags & ARM64_IMAGE_CAN_BE_PLACED_ANYWHERE) {
 		*allocation = AllocateAlignedPages(pages, ARM64_IMAGE_ALIGNMENT);
 		if (!*allocation) return EFI_OUT_OF_RESOURCES;
+		*allocation_aligned = true;
 	} else {
 		status = allocate_legacy_kernel_pages(pages, allocation);
 		if (EFI_ERROR(status)) return status;
@@ -290,6 +296,7 @@ EFI_STATUS linux_boot_use_aarch64(linux_data* data) {
 	void *kernel_allocation = NULL, *kernel = NULL;
 	void *fdt = NULL, *source_fdt;
 	UINTN kernel_pages = 0, kernel_size = 0, fdt_size;
+	bool kernel_allocation_aligned = false;
 	size_t memory_count = 0;
 	int ret;
 
@@ -305,7 +312,8 @@ EFI_STATUS linux_boot_use_aarch64(linux_data* data) {
 	}
 
 	status = prepare_kernel(
-		data, &kernel_allocation, &kernel, &kernel_pages, &kernel_size
+		data, &kernel_allocation, &kernel, &kernel_pages, &kernel_size,
+		&kernel_allocation_aligned
 	);
 	if (EFI_ERROR(status)) goto done;
 	fdt = AllocateAlignedPages(
@@ -353,7 +361,12 @@ EFI_STATUS linux_boot_use_aarch64(linux_data* data) {
 
 done:
 	if (memory) FreePool(memory);
-	if (fdt) FreePages(fdt, EFI_SIZE_TO_PAGES(ARM64_FDT_MAX_SIZE));
-	if (kernel_allocation) FreePages(kernel_allocation, kernel_pages);
+	if (fdt) FreeAlignedPages(fdt, EFI_SIZE_TO_PAGES(ARM64_FDT_MAX_SIZE));
+	if (kernel_allocation) {
+		if (kernel_allocation_aligned)
+			FreeAlignedPages(kernel_allocation, kernel_pages);
+		else
+			FreePages(kernel_allocation, kernel_pages);
+	}
 	return status;
 }

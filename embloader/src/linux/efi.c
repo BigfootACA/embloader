@@ -45,6 +45,8 @@ EFI_STATUS linux_boot_efi(void *img, size_t len, const char *cmdline) {
 	union memmap_dp dp = memmap_dp_def;
 	if (!img || len == 0) return EFI_INVALID_PARAMETER;
 	dp.memmap.StartingAddress = (EFI_PHYSICAL_ADDRESS)(UINTN)img;
-	dp.memmap.EndingAddress = (EFI_PHYSICAL_ADDRESS)(UINTN)img + len;
+	if (len - 1 > MAX_UINT64 - dp.memmap.StartingAddress)
+		return EFI_BAD_BUFFER_SIZE;
+	dp.memmap.EndingAddress = dp.memmap.StartingAddress + len - 1;
 	return embloader_start_efi(&dp.dp, img, len, cmdline);
 }

@@ -57,8 +57,26 @@ list* embloader_dt_get_dtbo_dir() {
 	return ret;
 }
 
+static bool dtbo_matches_active_profile(confignode *node) {
+	char *profile = confignode_path_get_string(
+		node, "profile", NULL, NULL
+	);
+	if (!profile) return true;
+	bool matches = !profile[0] ||
+		list_search_string(g_embloader.profiles, profile) != NULL;
+	free(profile);
+	return matches;
+}
+
 static bool apply_dtbo_libufdt(const char *dtbo_name, fdt base, fdt dtbo) {
-	fdt_pack(base);
+	int ret = fdt_pack(base);
+	if (ret != 0) {
+		log_warning(
+			"pack base tree failed for %s: %s",
+			dtbo_name, fdt_strerror(ret)
+		);
+		return false;
+	}
 	int dtbo_size = fdt_totalsize(dtbo);
 	int base_size = fdt_totalsize(base);
 	struct fdt_header* nfdt = ufdt_apply_overlay(
@@ -72,7 +90,7 @@ static bool apply_dtbo_libufdt(const char *dtbo_name, fdt base, fdt dtbo) {
 		return false;
 	}
 	int new_size = fdt_totalsize(nfdt);
-	if (new_size > SIZE_2MB) {
+	if (new_size <= 0 || new_size > SIZE_2MB) {
 		log_warning(
 			"overlay new dtb too large: %d bytes",
 			new_size
@@ -81,7 +99,7 @@ static bool apply_dtbo_libufdt(const char *dtbo_name, fdt base, fdt dtbo) {
 		return false;
 	}
 	memset(base, 0, SIZE_2MB);
-	int ret = fdt_open_into(nfdt, base, SIZE_2MB);
+	ret = fdt_open_into(nfdt, base, SIZE_2MB);
 	free(nfdt);
 	if (ret != 0) {
 		log_warning(
@@ -118,16 +136,42 @@ static bool apply_dtbo_libfdt(const char *dtbo_name, fdt base, fdt dtbo) {
  */
 bool linux_apply_dtbo(const char *dtbo_name, fdt base, fdt dtbo) {
 	bool result = false;
+	void *working = NULL;
+	int ret;
+	if (!dtbo_name || !base || !dtbo) return false;
+	if (fdt_check_header(base) != 0 || fdt_check_header(dtbo) != 0)
+		return false;
 	char *method = confignode_path_get_string(
 		g_embloader.config,
 		"devicetree.dtbo-method", "libufdt", NULL
 	);
 	if (!method) return false;
+	working = malloc(SIZE_2MB);
+	if (!working) {
+		free(method);
+		return false;
+	}
+	memset(working, 0, SIZE_2MB);
+	ret = fdt_open_into(base, working, SIZE_2MB);
+	if (ret != 0) {
+		log_warning(
+			"copy base tree failed for %s: %s",
+			dtbo_name, fdt_strerror(ret)
+		);
+		goto done;
+	}
 	if (strcasecmp(method, "libufdt") == 0)
-		result = apply_dtbo_libufdt(dtbo_name, base, dtbo);
+		result = apply_dtbo_libufdt(dtbo_name, working, dtbo);
 	else if (strcasecmp(method, "libfdt") == 0)
-		result = apply_dtbo_libfdt(dtbo_name, base, dtbo);
+		result = apply_dtbo_libfdt(dtbo_name, working, dtbo);
 	else log_warning("unknown dtbo method %s", method);
+	if (result && fdt_check_header(working) != 0) {
+		log_warning("overlay %s produced an invalid tree", dtbo_name);
+		result = false;
+	}
+	if (result) memcpy(base, working, SIZE_2MB);
+done:
+	free(working);
 	free(method);
 	return result;
 }
@@ -207,7 +251,9 @@ bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *d
 	dtbo_xpath = confignode_path_get_string(node, "path", dtbo_name, NULL);
 	if (!dtbo_xpath) return false;
 	log_debug("try apply dtbo %s", dtbo_name);
-	return do_load_dtbo_dirs(fdt, base, dtbo_xpath, params, dtbo_dir);
+	bool ret = do_load_dtbo_dirs(fdt, base, dtbo_xpath, params, dtbo_dir);
+	free(dtbo_xpath);
+	return ret;
 }
 
 /**
@@ -221,22 +267,23 @@ bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *d
  * @param alt_dir List of alternative directories to search for overlays
  * @param on_error Behavior to follow if an overlay fails to apply
  * @return int Returns the number of successfully applied overlays,
- *             -1 if overlays fail when on_error is DTBO_ERROR_FAIL,
+ *             -1 if overlays fail under the configured error policy,
  *             0 if no overlays configured
  */
 int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error) {
-	if (!fdt) return false;
+	if (!fdt) return -1;
 	int applied_count = 0;
 	bool is_empty = true;
 	list *dtbo_dir = embloader_dt_get_dtbo_dir();
-	if (!dtbo_dir) {
-		log_warning("no dtbo directory configured, skip apply dtbo");
-		return 0;
-	}
+	if (!dtbo_dir) log_warning(
+		"no dtbo directory configured; only absolute overlay paths can be used"
+	);
 	list *x = list_duplicate_chars(alt_dir, NULL);
 	if (x) list_obj_add(&dtbo_dir, x);
 	list_reverse(dtbo_dir);
 	confignode_path_foreach(iter, g_embloader.config, "devicetree.overlays") {
+		if (!confignode_path_get_bool(iter.node, "enabled", true, NULL)) continue;
+		if (!dtbo_matches_active_profile(iter.node)) continue;
 		is_empty = false;
 		if (linux_load_dtbo(base, fdt, iter.node, dtbo_dir)) applied_count++;
 		else if (on_error == DTBO_ERROR_FAILURE || on_error == DTBO_ERROR_REVERT) {
@@ -266,7 +313,11 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 	int applied_count = 0, failed_count = 0, ret;
 	enum embloader_dtbo_on_error on_error = linux_get_dtbo_on_error();
 	if (!data || !info) return EFI_INVALID_PARAMETER;
-	if (!info->dtoverlay) return EFI_SUCCESS;
+	if (
+		!info->dtoverlay && !confignode_path_lookup(
+			g_embloader.config, "devicetree.overlays", false
+		)
+	) return EFI_SUCCESS;
 	if (!data->fdt && !g_embloader.fdt)
 		embloader_fetch_fdt();
 	if (!data->fdt && !g_embloader.fdt) {
@@ -278,7 +329,7 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 	void *xfdt = data->fdt ?: g_embloader.fdt;
 	if (on_error == DTBO_ERROR_REVERT && xfdt) {
 		fdt_size = fdt_totalsize(xfdt);
-		if (fdt_size < 0 || fdt_size > SIZE_2MB) {
+		if (fdt_size <= 0 || fdt_size > SIZE_2MB) {
 			log_error("bad current fdt");
 			return EFI_DEVICE_ERROR;
 		}
@@ -293,6 +344,7 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 	if (ret < 0){
 		if (on_error == DTBO_ERROR_FAILURE) {
 			list_free_all_def(dtbo_dir);
+			if (fdt_backup) free(fdt_backup);
 			return EFI_LOAD_ERROR;
 		}
 		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
@@ -302,6 +354,7 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 			free(fdt_backup);
 			return EFI_SUCCESS;
 		}
+		if (on_error == DTBO_ERROR_NEEDONE) failed_count++;
 	}
 	if (ret > 0) applied_count += ret;
 	list *p;
@@ -320,6 +373,7 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 		if (on_error == DTBO_ERROR_FAILURE) {
 			log_error("dtbo %s failed, aborting boot", dtbo->path);
 			list_free_all_def(dtbo_dir);
+			if (fdt_backup) free(fdt_backup);
 			return EFI_LOAD_ERROR;
 		}
 		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {

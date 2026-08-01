@@ -75,9 +75,10 @@ EFI_STATUS linux_initramfs_register(const void *ptr, size_t size, EFI_HANDLE *ha
 	EFI_DEVICE_PATH *dp = (EFI_DEVICE_PATH *) &initrd_dp;
 	EFI_HANDLE handle;
 	struct initrd_loader *loader;
-	if (!ptr || size == 0) return EFI_INVALID_PARAMETER;
+	if (!ptr || size == 0 || !hand) return EFI_INVALID_PARAMETER;
 	status = gBS->LocateDevicePath(&gEfiLoadFile2ProtocolGuid, &dp, &handle);
-	if (status != EFI_NOT_FOUND) return EFI_ALREADY_STARTED;
+	if (!EFI_ERROR(status)) return EFI_ALREADY_STARTED;
+	if (status != EFI_NOT_FOUND) return status;
 	loader = malloc(sizeof(struct initrd_loader));
 	if (!loader) return EFI_OUT_OF_RESOURCES;
 	loader->load.LoadFile = initrd_load_file;
@@ -148,10 +149,12 @@ static int free_initramfs_file(void *p) {
  * @return EFI_STATUS Returns EFI_SUCCESS on success, or appropriate error code on failure
  */
 EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
-	EFI_STATUS status;
+	EFI_STATUS status = EFI_SUCCESS;
+	EFI_PHYSICAL_ADDRESS address;
 	char buff[64];
 	void *ptr = NULL, *pages = NULL;
-	size_t len = 0, pcnt = 0, total_len = 0;
+	size_t len = 0, total_len = 0;
+	UINTN page_count = 0;
 	list *ptrs = NULL, *p;
 	if (!data || !info) return EFI_INVALID_PARAMETER;
 	if ((p = list_first(info->initramfs))) do {
@@ -177,7 +180,20 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 			.name = strdup(initramfs),
 			.data = ptr, .size = len,
 		};
-		list_obj_add_new_dup(&ptrs, &file, sizeof(file));
+		if (!file.name) {
+			status = EFI_OUT_OF_RESOURCES;
+			goto fail;
+		}
+		if (len > MAX_UINTN - total_len) {
+			free(file.name);
+			status = EFI_BAD_BUFFER_SIZE;
+			goto fail;
+		}
+		if (list_obj_add_new_dup(&ptrs, &file, sizeof(file)) != 0) {
+			free(file.name);
+			status = EFI_OUT_OF_RESOURCES;
+			goto fail;
+		}
 		total_len += len, ptr = NULL, len = 0;
 	} while ((p = p->next));
 	if (!ptrs) {
@@ -190,27 +206,35 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 		format_size_float(buff, total_len),
 		(uint64_t)total_len
 	);
-	pages = (void*) UINT32_MAX;
-	pcnt = EFI_SIZE_TO_PAGES(total_len);
+	if (total_len > MAX_UINTN - EFI_PAGE_SIZE + 1) {
+		status = EFI_BAD_BUFFER_SIZE;
+		goto fail;
+	}
+	address = MAX_UINT32;
+	page_count = EFI_SIZE_TO_PAGES(total_len);
 	status = gBS->AllocatePages(
 		AllocateMaxAddress, EfiLoaderData,
-		pcnt, (EFI_PHYSICAL_ADDRESS*)&pages
+		page_count, &address
 	);
 	if (EFI_ERROR(status)) {
-		pages = NULL, pcnt = 0;
 		log_error(
-			"alloc pages for initramfs %s failed: %s",
-			info->initramfs, efi_status_to_string(status)
+			"alloc pages for initramfs collection failed: %s",
+			efi_status_to_string(status)
 		);
 		goto fail;
 	}
+	pages = (void*) (UINTN) address;
 	int cnt = 0;
 	size_t offset = 0;
 	if ((p = list_first(ptrs))) do {
 		LIST_DATA_DECLARE(file, p, struct initramfs_file*);
 		if (!file || !file->data || file->size == 0) continue;
-		if (offset + file->size > total_len) {
-			log_error("initramfs %s size overflow at %" PRIu64, file->name, offset);
+		if (offset > total_len || file->size > total_len - offset) {
+			log_error(
+				"initramfs %s size overflow at %" PRIu64,
+				file->name, (uint64_t) offset
+			);
+			status = EFI_BAD_BUFFER_SIZE;
 			goto fail;
 		}
 		memcpy(pages + offset, file->data, file->size);
@@ -221,11 +245,12 @@ EFI_STATUS linux_load_initramfs(linux_data *data, linux_bootinfo *info) {
 	data->initramfs_size = total_len;
 	log_info(
 		"initramfs collections (%d) at %p with %" PRIu64 " pages",
-		cnt, data->initramfs, (uint64_t)pcnt
+		cnt, data->initramfs, (uint64_t)page_count
 	);
 	return EFI_SUCCESS;
 fail:
-	if (pages) gBS->FreePages((UINTN)pages, pcnt);
+	if (pages) gBS->FreePages((EFI_PHYSICAL_ADDRESS)(UINTN)pages, page_count);
+	if (ptr) FreePages(ptr, EFI_SIZE_TO_PAGES(len));
 	list_free_all(ptrs, free_initramfs_file);
 	return status;
 }

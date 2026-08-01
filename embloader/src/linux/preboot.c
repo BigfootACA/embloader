@@ -60,7 +60,7 @@ static EFI_STATUS efi_dtfixup(void *tree) {
 		);
 		goto done;
 	}
-	if ((ret = fdt_check_header(tree)) != 0) {
+	if ((ret = fdt_check_header(buff)) != 0) {
 		log_error("efi dtfixup produced invalid fdt: %s", fdt_strerror(ret));
 		status = EFI_DEVICE_ERROR;
 		goto done;
@@ -101,14 +101,19 @@ EFI_STATUS linux_install_fdt(fdt fdt) {
 	memcpy(copied, fdt, size);
 	if (confignode_path_get_bool(g_embloader.config, "efi.dtfixup", true, NULL))
 		efi_dtfixup(copied);
-	fdt_finish(copied);
+	int ret = fdt_pack(copied);
+	if (ret != 0) {
+		log_error("failed to finalize fdt: %s", fdt_strerror(ret));
+		FreeAlignedPages(copied, EFI_SIZE_TO_PAGES(SIZE_2MB));
+		return EFI_DEVICE_ERROR;
+	}
 	status = gBS->InstallConfigurationTable(&gFdtTableGuid, copied);
 	if (EFI_ERROR(status)) {
 		log_error(
 			"failed to install fdt to system table: %s",
 			efi_status_to_string(status)
 		);
-		gBS->FreePages((EFI_PHYSICAL_ADDRESS)(UINTN)copied, EFI_SIZE_TO_PAGES(size));
+		FreeAlignedPages(copied, EFI_SIZE_TO_PAGES(SIZE_2MB));
 		return status;
 	}
 	return EFI_SUCCESS;
@@ -207,6 +212,7 @@ EFI_STATUS embloader_prepare_boot() {
 			memcpy(g_embloader.fdt, fdt_backup, fdt_size);
 		} else {
 			log_error("load dtbos from default dir failed");
+			if (fdt_backup) free(fdt_backup);
 			return EFI_LOAD_ERROR;
 		}
 	} else if (ret == 0)

@@ -4,7 +4,10 @@
 #include "linuxboot.h"
 #include "configfile.h"
 #include "log.h"
+#include "str-utils.h"
 #include <libfdt.h>
+#include <errno.h>
+#include <limits.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -15,41 +18,98 @@ typedef struct override_target {
 	uint32_t offset;
 } override_target;
 
+static void free_override_targets(override_target *targets, int target_count) {
+	if (!targets) return;
+	for (int i = 0; i < target_count; i++)
+		free(targets[i].property);
+	free(targets);
+}
+
 static override_target* parse_override_spec(
-	fdt fdt,
 	const fdt32_t *spec,
 	int spec_len,
 	int *target_count
 ) {
-	if (!fdt || !spec || spec_len < 8) return NULL;
+	if (!spec || spec_len < 6 || !target_count) return NULL;
 	*target_count = 0;
 	override_target *targets = NULL;
-	int pos = 0;
-	while (pos < spec_len / 4) {
-		uint32_t phandle = fdt32_to_cpu(spec[pos++]);
-		if (pos >= spec_len / 4) break;
-		uint32_t prop_offset = fdt32_to_cpu(spec[pos++]);
-		const char *prop_str = fdt_get_string(fdt, prop_offset, NULL);
-		if (!prop_str) continue;
-		char *prop_copy = strdup(prop_str);
+	const uint8_t *pos = (const uint8_t*) spec;
+	const uint8_t *end = pos + spec_len;
+	while (pos < end) {
+		fdt32_t raw_phandle;
+		if ((size_t)(end - pos) < sizeof(raw_phandle) + 2) goto fail;
+		memcpy(&raw_phandle, pos, sizeof(raw_phandle));
+		uint32_t phandle = fdt32_to_cpu(raw_phandle);
+		pos += sizeof(raw_phandle);
+		const uint8_t *prop_end = memchr(pos, 0, end - pos);
+		if (!prop_end || prop_end == pos) goto fail;
+		char *prop_copy = strndup((const char*)pos, prop_end - pos);
+		if (!prop_copy) goto fail;
 		char *colon = strchr(prop_copy, ':');
 		uint32_t offset = 0;
 		if (colon) {
 			*colon = 0;
-			offset = (uint32_t)strtoul(colon + 1, NULL, 0);
+			char *value_end = NULL;
+			errno = 0;
+			unsigned long value = strtoul(colon + 1, &value_end, 0);
+			if (
+				!prop_copy[0] || value_end == colon + 1 || *value_end ||
+				errno == ERANGE || value > UINT32_MAX
+			) {
+				free(prop_copy);
+				goto fail;
+			}
+			offset = (uint32_t)value;
 		}
-		targets = realloc(targets, (*target_count + 1) * sizeof(override_target));
-		if (!targets) {
+		if (!prop_copy[0] || *target_count == INT_MAX) {
 			free(prop_copy);
-			return NULL;
+			goto fail;
 		}
+		size_t new_count = (size_t)*target_count + 1;
+		if (new_count > SIZE_MAX / sizeof(override_target)) {
+			free(prop_copy);
+			goto fail;
+		}
+		override_target *new_targets = realloc(
+			targets, new_count * sizeof(override_target)
+		);
+		if (!new_targets) {
+			free(prop_copy);
+			goto fail;
+		}
+		targets = new_targets;
 		targets[*target_count].phandle = phandle;
-		targets[*target_count].property = strdup(prop_copy);
+		targets[*target_count].property = prop_copy;
 		targets[*target_count].offset = offset;
 		(*target_count)++;
-		free(prop_copy);
+		pos = prop_end + 1;
 	}
 	return targets;
+fail:
+	free_override_targets(targets, *target_count);
+	*target_count = 0;
+	return NULL;
+}
+
+static bool parse_override_value(const char *param_value, uint32_t *value) {
+	if (!param_value || !value) return false;
+	if (!param_value[0] || string_is_true(param_value)) {
+		*value = 1;
+		return true;
+	}
+	if (string_is_false(param_value)) {
+		*value = 0;
+		return true;
+	}
+	char *end = NULL;
+	errno = 0;
+	unsigned long long parsed = strtoull(param_value, &end, 0);
+	if (
+		end == param_value || *end || errno == ERANGE ||
+		parsed > UINT32_MAX
+	) return false;
+	*value = (uint32_t)parsed;
+	return true;
 }
 
 static bool apply_override_parameter(
@@ -60,7 +120,14 @@ static bool apply_override_parameter(
 	int target_count
 ) {
 	if (!fdt || !param_name || !param_value || !targets) return false;
-	uint32_t value = (uint32_t) strtoul(param_value, NULL, 0);
+	uint32_t value;
+	if (!parse_override_value(param_value, &value)) {
+		log_warning(
+			"invalid value for override %s: %s",
+			param_name, param_value
+		);
+		return false;
+	}
 	uint32_t value_be = cpu_to_fdt32(value);
 	log_debug(
 		"applying override %s = %s (%u) to %d targets",
@@ -87,8 +154,11 @@ static bool apply_override_parameter(
 			success = false;
 			continue;
 		}
-		uint32_t byte_offset = targets[i].offset * 4;
-		if (byte_offset + 4 > prop_len) {
+		uint32_t byte_offset = targets[i].offset;
+		if (
+			byte_offset > (uint32_t)prop_len ||
+			(uint32_t)prop_len - byte_offset < sizeof(value_be)
+		) {
 			log_warning(
 				"offset %u exceeds property %s length %d",
 				targets[i].offset, targets[i].property, prop_len
@@ -103,7 +173,7 @@ static bool apply_override_parameter(
 			continue;
 		}
 		memcpy(new_prop, prop_data, prop_len);
-		memcpy((char*)new_prop + byte_offset, &value_be, 4);
+		memcpy((char*)new_prop + byte_offset, &value_be, sizeof(value_be));
 		int ret = fdt_setprop(fdt, node, targets[i].property, new_prop, prop_len);
 		free(new_prop);
 		if (ret < 0) {
@@ -154,14 +224,14 @@ bool linux_dtbo_write_overrides(fdt fdt, confignode *overrides) {
 		}
 		int spec_len = 0;
 		const fdt32_t *spec = fdt_getprop(fdt, overrides_node, key, &spec_len);
-		if (!spec || spec_len < 8) {
+		if (!spec || spec_len < 6) {
 			log_warning("override specification for %s not found or invalid", key);
 			free(param_value);
 			overall_success = false;
 			continue;
 		}
 		int target_count = 0;
-		override_target *targets = parse_override_spec(fdt, spec, spec_len, &target_count);
+		override_target *targets = parse_override_spec(spec, spec_len, &target_count);
 		if (!targets || target_count <= 0) {
 			log_warning("failed to parse override specification for %s", key);
 			free(param_value);
@@ -175,9 +245,7 @@ bool linux_dtbo_write_overrides(fdt fdt, confignode *overrides) {
 			log_warning("failed to apply parameter %s", key);
 			overall_success = false;
 		} else log_debug("successfully applied parameter %s = %s", key, param_value);
-		for (int j = 0; j < target_count; j++)
-			free(targets[j].property);
-		free(targets);
+		free_override_targets(targets, target_count);
 		free(param_value);
 	}
 	return overall_success;

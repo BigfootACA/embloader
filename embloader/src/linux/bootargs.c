@@ -34,7 +34,21 @@ char* linux_prepare_bootargs(list *def_bootargs) {
 		list *n = list_duplicate_chars(def_bootargs, NULL);
 		if (n) list_obj_add(&bootargs, n);
 	}
-	return list_to_string(bootargs, " ");
+	if (!bootargs) return strdup("");
+	char *result = list_to_string(bootargs, " ");
+	if (!result) {
+		bool have_value = false;
+		if ((p = list_first(bootargs))) do {
+			LIST_DATA_DECLARE(value, p, char*);
+			if (value && value[0]) {
+				have_value = true;
+				break;
+			}
+		} while ((p = p->next));
+		if (!have_value) result = strdup("");
+	}
+	list_free_all_def(bootargs);
+	return result;
 }
 
 /**

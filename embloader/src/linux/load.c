@@ -26,7 +26,7 @@ linux_data* linux_data_load(linux_bootinfo *info) {
 	if (EFI_ERROR(linux_load_bootargs(data, info))) goto fail;
 	if (EFI_ERROR(linux_load_devicetree(data, info))) goto fail;
 	if (EFI_ERROR(linux_load_dtoverlay(data, info))) {
-		if (confignode_path_get_bool(
+		if (!confignode_path_get_bool(
 			g_embloader.config,
 			"devicetree.skip-overlays-error",
 			true, NULL

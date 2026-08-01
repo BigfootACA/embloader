@@ -15,9 +15,19 @@ EFI_STATUS linux_boot_use_efi(linux_data *data) {
 	EFI_STATUS status;
 	EFI_HANDLE initrd_hand = NULL;
 	if (!data) return EFI_INVALID_PARAMETER;
-	if (data->fdt) linux_install_fdt(data->fdt);
-	else if(!g_embloader.fdt)
-		embloader_prepare_boot();
+	if (data->fdt || g_embloader.fdt) {
+		status = linux_install_fdt(data->fdt ?: g_embloader.fdt);
+		if (EFI_ERROR(status)) {
+			log_error("install device tree failed: %s", efi_status_to_string(status));
+			return status;
+		}
+	} else {
+		status = embloader_prepare_boot();
+		if (EFI_ERROR(status)) log_warning(
+			"prepare device tree failed: %s; continuing without one",
+			efi_status_to_string(status)
+		);
+	}
 	if (data->initramfs && data->initramfs_size > 0) {
 		status = linux_initramfs_register(
 			data->initramfs,

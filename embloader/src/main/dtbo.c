@@ -7,41 +7,56 @@
 #include <string.h>
 #include <ctype.h>
 
-static void parse_overlay_params(const char* params, size_t len, confignode* overlay_node) {
-	if (!params || !overlay_node || len == 0) return;
+static bool parse_overlay_params(const char* params, size_t len, confignode* overlay_node) {
+	if (!params || !overlay_node || len == 0) return false;
 	confignode* params_node = confignode_path_lookup(overlay_node, "params", true);
-	if (!params_node) return;
-	if (!confignode_is_type(params_node, CONFIGNODE_TYPE_MAP))
-		confignode_replace(&params_node, confignode_new_map());
+	if (!params_node) return false;
+	if (!confignode_is_type(params_node, CONFIGNODE_TYPE_MAP)) {
+		confignode *replacement = confignode_new_map();
+		if (!replacement) return false;
+		if (!confignode_replace(&params_node, replacement)) {
+			confignode_clean(replacement);
+			return false;
+		}
+	}
 	const char* start = params;
 	const char* end = params + len;
-	while (start < end && isspace(*start)) start++;
-	while (end > start && isspace(*(end - 1))) end--;
+	while (start < end && isspace((unsigned char)*start)) start++;
+	while (end > start && isspace((unsigned char)*(end - 1))) end--;
 	while (start < end) {
 		const char* param_start = start, *param_end = start;
 		while (param_end < end && *param_end != ',' && *param_end != '=') param_end++;
-		while (param_end > param_start && isspace(*(param_end - 1))) param_end--;
-		if (param_end <= param_start) break;
+		while (param_end > param_start && isspace((unsigned char)*(param_end - 1))) param_end--;
+		if (param_end <= param_start) return false;
 		char* param_name = strndup(param_start, param_end - param_start);
-		if (!param_name) break;
+		if (!param_name) return false;
 		start = param_end;
-		while (start < end && isspace(*start)) start++;
+		while (start < end && isspace((unsigned char)*start)) start++;
 		if (start < end && *start == '=') {
 			start++;
-			while (start < end && isspace(*start)) start++;
+			while (start < end && isspace((unsigned char)*start)) start++;
 			const char* value_start = start;
 			while (start < end && *start != ',') start++;
 			const char* value_end = start;
-			while (value_end > value_start && isspace(*(value_end - 1))) value_end--;
+			while (value_end > value_start && isspace((unsigned char)*(value_end - 1))) value_end--;
 			char* value = strndup(value_start, value_end - value_start);
-			if (value) {
-				confignode_path_set_string(params_node, param_name, value);
+			if (!value || !confignode_path_set_string(
+				params_node, param_name, value
+			)) {
 				free(value);
+				free(param_name);
+				return false;
 			}
-		} else confignode_path_set_string(params_node, param_name, "");
+			free(value);
+		} else if (!confignode_path_set_string(params_node, param_name, "")) {
+			free(param_name);
+			return false;
+		}
 		free(param_name);
 		if (start < end && *start == ',') start++;
+		while (start < end && isspace((unsigned char)*start)) start++;
 	}
+	return true;
 }
 
 static bool parse_dtoverlay_line(const char* line, size_t len, const char* profile, confignode* dtree_node) {
@@ -49,49 +64,69 @@ static bool parse_dtoverlay_line(const char* line, size_t len, const char* profi
 	char* params_str = NULL, *overlay_name = NULL;
 	confignode* overlay_node = NULL;
 	if (!line || !dtree_node || len == 0) return false;
-	while (len > 0 && isspace(*line)) line++, len--;
+	while (len > 0 && isspace((unsigned char)*line)) line++, len--;
 	if (len == 0 || *line == '#') return true;
 	const char* dtoverlay_prefix = "dtoverlay";
 	size_t prefix_len = strlen(dtoverlay_prefix);
 	if (len < prefix_len || strncasecmp(line, dtoverlay_prefix, prefix_len) != 0) return true;
 	line += prefix_len, len -= prefix_len;
+	if (len > 0 && *line != '.' && *line != '=' && !isspace((unsigned char)*line))
+		return true;
 	char *cur_profile = NULL;
 	if (len > 0 && *line == '.') {
 		line++, len--;
 		const char* profile_start = line;
 		size_t profile_len = 0;
-		while (profile_len < len && line[profile_len] != '=' && !isspace(line[profile_len])) profile_len++;
+		while (
+			profile_len < len && line[profile_len] != '=' &&
+			!isspace((unsigned char)line[profile_len])
+		) profile_len++;
 		if (profile_len > 0) {
 			cur_profile = strndup(profile_start, profile_len);
+			if (!cur_profile) goto fail;
 			line += profile_len, len -= profile_len;
 		}
 	}
-	while (len > 0 && isspace(*line)) line++, len--;
+	while (len > 0 && isspace((unsigned char)*line)) line++, len--;
 	if (len == 0 || *line != '=') goto fail;
 	line++, len--;
-	while (len > 0 && isspace(*line)) line++, len--;
+	while (len > 0 && isspace((unsigned char)*line)) line++, len--;
 	const char* overlay_start = line, *params_start = NULL;
 	size_t overlay_name_len = 0, params_len = 0;
 	while (overlay_name_len < len && line[overlay_name_len] != ',') overlay_name_len++;
 	if (overlay_name_len < len && line[overlay_name_len] == ',')
 		params_start = line + overlay_name_len + 1, params_len = len - overlay_name_len - 1;
+	while (
+		overlay_name_len > 0 &&
+		isspace((unsigned char)overlay_start[overlay_name_len - 1])
+	) overlay_name_len--;
+	if (overlay_name_len == 0) goto fail;
 	if (!(overlay_name = strndup(overlay_start, overlay_name_len))) goto fail;
-	char* name_end = overlay_name + overlay_name_len - 1;
-	while (name_end >= overlay_name && isspace(*name_end)) *name_end-- = 0;
-	if (!(overlay_node = confignode_map_get(dtree_node, overlay_name))) {
-		overlay_node = confignode_new_map();
-		if (!overlay_node || !confignode_map_set(dtree_node, overlay_name, overlay_node)) goto fail;
-	}
-	confignode_path_set_string(overlay_node, "enabled", "yes");
+	confignode *existing = confignode_map_get(dtree_node, overlay_name);
+	if (existing && confignode_is_type(existing, CONFIGNODE_TYPE_MAP))
+		overlay_node = confignode_copy(existing);
+	else overlay_node = confignode_new_map();
+	if (!overlay_node) goto fail;
+	if (!confignode_path_set_bool(overlay_node, "enabled", true)) goto fail;
 	if (cur_profile) {
-		confignode_path_set_string(overlay_node, "profile", cur_profile);
+		if (!confignode_path_set_string(overlay_node, "profile", cur_profile)) goto fail;
 	} else if (profile) {
-		confignode_path_set_string(overlay_node, "profile", profile);
+		if (!confignode_path_set_string(overlay_node, "profile", profile)) goto fail;
 	}
-	if (params_start && params_len > 0 && (params_str = strndup(params_start, params_len)))
-		parse_overlay_params(params_str, params_len, overlay_node);
+	if (params_start && params_len > 0) {
+		params_str = strndup(params_start, params_len);
+		if (!params_str || !parse_overlay_params(
+			params_str, params_len, overlay_node
+		)) goto fail;
+	}
+	if (existing) {
+		if (!confignode_replace(&existing, overlay_node)) goto fail;
+	} else if (!confignode_map_set(dtree_node, overlay_name, overlay_node))
+		goto fail;
+	overlay_node = NULL;
 	ret = true;
 fail:
+	if (overlay_node) confignode_clean(overlay_node);
 	if (cur_profile) free(cur_profile);
 	if (overlay_name) free(overlay_name);
 	if (params_str) free(params_str);
@@ -112,18 +147,29 @@ EFI_STATUS embloader_load_dtbo_config(confignode *node, const char *buffer) {
 		node, "devicetree.overlays", true
 	);
 	if (!dtree_node) return EFI_OUT_OF_RESOURCES;
-	if (!confignode_is_type(dtree_node, CONFIGNODE_TYPE_MAP))
-		confignode_replace(&dtree_node, confignode_new_map());
+	if (!confignode_is_type(dtree_node, CONFIGNODE_TYPE_MAP)) {
+		confignode *replacement = confignode_new_map();
+		if (!replacement) return EFI_OUT_OF_RESOURCES;
+		if (!confignode_replace(&dtree_node, replacement)) {
+			confignode_clean(replacement);
+			return EFI_OUT_OF_RESOURCES;
+		}
+	}
 	int lineno = 0;
 	while (*cur) {
+		lineno++;
 		while (*cur && *cur != '\n' && *cur != '\r') cur++;
+		const char *trimmed = line_start;
 		size_t len = cur - line_start;
-		if (len > 2 && line_start[0] == '[' && line_start[len - 1] == ']') {
+		while (len > 0 && isspace((unsigned char)*trimmed)) trimmed++, len--;
+		while (len > 0 && isspace((unsigned char)trimmed[len - 1])) len--;
+		if (len > 2 && trimmed[0] == '[' && trimmed[len - 1] == ']') {
 			if (profile) free(profile);
-			profile = strndup(line_start + 1, len - 2);
-		} else if (len > 0 && !parse_dtoverlay_line(line_start, len, profile, dtree_node)) {
-			log_warning("failed to parse dtoverlay line %d", lineno + 1);
-			log_debug("line %d: '%.*s'", lineno, (int)len, line_start);
+			profile = strndup(trimmed + 1, len - 2);
+			if (!profile) return EFI_OUT_OF_RESOURCES;
+		} else if (len > 0 && !parse_dtoverlay_line(trimmed, len, profile, dtree_node)) {
+			log_warning("failed to parse dtoverlay line %d", lineno);
+			log_debug("line %d: '%.*s'", lineno, (int)len, trimmed);
 		}
 		if (*cur) {
 			cur++;
