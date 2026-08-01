@@ -34,7 +34,7 @@ is_systemd_boot() {
 }
 
 get_diversion_owner() {
-    dpkg-divert --listpackage "$1" 2>/dev/null || true
+    dpkg-divert --listpackage "$1"
 }
 
 validate_managed_path() {
