@@ -304,6 +304,7 @@ EFI_STATUS sdboot_boot_load_root(sdboot_menu *menu, embloader_dir *dir) {
 	if (!confignode_path_lookup(g_embloader.config, "menu.timeout", false)) {
 		log_debug("use timeout value %d from sdboot config", menu->menu.timeout);
 		g_embloader.menu->timeout = menu->menu.timeout;
+		g_embloader.menu->disabled = menu->menu.disabled;
 	}
 	if (menu->menu.default_entry && !confignode_path_lookup(g_embloader.config, "menu.default", false)) {
 		embloader_loader *l;

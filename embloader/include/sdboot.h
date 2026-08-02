@@ -38,6 +38,7 @@ enum sdboot_secureboot_enroll {
 struct sdboot_boot_menu {
 	char *default_entry;                        ///< Default entry to boot
 	int timeout;                                ///< Menu timeout in seconds
+	bool disabled;                              ///< Disable all menu interaction
 	sdboot_console_mode console_mode;           ///< Console display mode (*unsupported)
 	bool editor;                                ///< Enable boot entry editor (*unsupported)
 	bool auto_entries;                          ///< Auto-discover entries
@@ -136,6 +137,12 @@ extern bool sdboot_boot_loader_check(sdboot_boot_loader *loader);
 
 /** Execute/invoke the specified boot loader entry */
 extern EFI_STATUS sdboot_boot_loader_invoke(sdboot_menu *menu, sdboot_boot_loader *loader);
+
+extern EFI_STATUS sdboot_init_loader_variables(void);
+extern EFI_STATUS sdboot_init_menu_variables(void);
+extern EFI_STATUS sdboot_set_menu_time(void);
+extern EFI_STATUS sdboot_set_exec_time(void);
+extern EFI_STATUS sdboot_set_selected_entry(const embloader_loader *loader);
 
 extern EFI_GUID gLoaderGuid;
 #endif

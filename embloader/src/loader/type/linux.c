@@ -1,6 +1,7 @@
 #include "../loader.h"
 #include "linuxboot.h"
 #include "log.h"
+#include "sdboot.h"
 
 EFI_STATUS embloader_loader_boot_linux(embloader_loader* loader) {
 	if (!loader || !loader->node) return EFI_INVALID_PARAMETER;
@@ -26,7 +27,7 @@ EFI_STATUS embloader_loader_boot_linux(embloader_loader* loader) {
 		log_error("failed to load Linux Image boot data");
 		return EFI_LOAD_ERROR;
 	}
-	EFI_STATUS status = linux_boot_use_aarch64(data);
+	EFI_STATUS status = linux_boot_use_aarch64(data, sdboot_set_exec_time);
 	linux_data_clean(data);
 	return status;
 #endif

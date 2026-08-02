@@ -25,8 +25,16 @@ sdboot_parse_status sdboot_boot_parse_menu_one(
 		return sdboot_parse_string_status(
 			value, value_len, &menu->default_entry
 		);
-	if (str_case_match(key, key_len, "timeout"))
-		return sdboot_parse_timeout_status(value, value_len, &menu->timeout);
+	if (str_case_match(key, key_len, "timeout")) {
+		sdboot_parse_status status = sdboot_parse_timeout_status(
+			value, value_len, &menu->timeout
+		);
+		if (status == SDBOOT_PARSE_SUCCESS)
+			menu->disabled = str_case_match(
+				value, value_len, "menu-disabled"
+			);
+		return status;
+	}
 	if (str_case_match(key, key_len, "console-mode"))
 		return sdboot_parse_console_mode(
 			value, value_len, &menu->console_mode

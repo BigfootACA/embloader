@@ -12,6 +12,7 @@
 
 [LibraryClasses]
   BaseLib
+  PrintLib
   UefiBootServicesTableLib
   newlib
   embloader_lib
@@ -24,3 +25,4 @@
   menu.c
   parser.c
   types.c
+  variables.c

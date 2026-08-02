@@ -298,13 +298,24 @@ sdboot_parse_status sdboot_parse_timeout_status(
 	size_t len,
 	int *out
 ) {
+	sdboot_parse_status status;
 	if (str_case_match(str, len, "menu-force"))
 		*out = -1;
 	else if (str_case_match(str, len, "menu-hidden"))
 		*out = 0;
 	else if (str_case_match(str, len, "menu-disabled"))
 		*out = 0;
-	else return sdboot_parse_int_status("timeout", str, len, out);
+	else {
+		status = sdboot_parse_int_status("timeout", str, len, out);
+		if (status != SDBOOT_PARSE_SUCCESS) return status;
+		if (*out < 0) {
+			log_warning(
+				"invalid integer value for 'timeout': %.*s",
+				(int)len, str
+			);
+			return SDBOOT_PARSE_INVALID;
+		}
+	}
 	return SDBOOT_PARSE_SUCCESS;
 }
 

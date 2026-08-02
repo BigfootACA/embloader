@@ -148,6 +148,7 @@ void embloader_load_menu() {
 		timeout = 10;
 	}
 	menu->timeout = (int)timeout;
+	menu->disabled = false;
 	menu->save_default = confignode_path_get_bool(cfg, "menu.save-default", false, NULL);
 	menu->default_entry = confignode_path_get_string(cfg, "menu.default", NULL, NULL);
 	menu->title = confignode_path_get_string(cfg, "menu.title", "", NULL);
@@ -225,9 +226,14 @@ static embloader_loader *embloader_get_next_loader(embloader_loader *current) {
 	return NULL;
 }
 
-static EFI_STATUS embloader_try_boot(embloader_loader *loader, uint64_t flags) {
+static EFI_STATUS embloader_try_boot(
+	embloader_loader *loader,
+	uint64_t flags,
+	embloader_entry_selected entry_selected
+) {
 	EFI_STATUS status;
 	while (true) {
+		if (entry_selected) (void) entry_selected(loader);
 		status = embloader_loader_boot(loader);
 		if (
 			EFI_ERROR(status) && (flags & EMBLOADER_FLAG_AUTOBOOT) &&
@@ -244,6 +250,32 @@ static EFI_STATUS embloader_try_boot(embloader_loader *loader, uint64_t flags) {
 	return status;
 }
 
+static embloader_loader *embloader_get_default_loader(void) {
+	embloader_menu *menu = g_embloader.menu;
+	list *p;
+	if (!menu) return NULL;
+	embloader_loader *loader = embloader_find_loader(menu->default_entry);
+	if (loader) return loader;
+	if ((p = list_first(menu->loaders))) do {
+		LIST_DATA_DECLARE(item, p, embloader_loader*);
+		if (item) return item;
+	} while ((p = p->next));
+	return NULL;
+}
+
+static bool embloader_hidden_menu_requested(void) {
+	EFI_INPUT_KEY key;
+	EFI_STATUS status;
+	if (!gST || !gST->ConIn || !gST->ConIn->ReadKeyStroke) return false;
+	for (unsigned i = 0; i < 10; i++) {
+		status = gST->ConIn->ReadKeyStroke(gST->ConIn, &key);
+		if (!EFI_ERROR(status)) return true;
+		if (status != EFI_NOT_READY) return true;
+		gBS->Stall(10000);
+	}
+	return false;
+}
+
 /**
  * @brief Display and handle the main boot menu loop.
  * This function implements the main menu loop, handling menu display,
@@ -253,17 +285,34 @@ static EFI_STATUS embloader_try_boot(embloader_loader *loader, uint64_t flags) {
  * @return EFI_SUCCESS on successful boot, EFI_NOT_STARTED if preparation needed,
  *         or error status from menu operations
  */
-EFI_STATUS embloader_show_menu() {
+EFI_STATUS embloader_show_menu(
+	embloader_before_menu before_menu,
+	embloader_entry_selected entry_selected
+) {
 	EFI_STATUS status;
 	while (true) {
 		embloader_load_ktype();
 		if (embloader_menu_is_complete()) {
 			uint64_t flags = 0;
 			embloader_loader *loader = NULL;
-			status = embloader_menu_start(&loader, &flags);
-			if (EFI_ERROR(status)) return status;
-			if (!loader) continue;
-			status = embloader_try_boot(loader, flags);
+			if (
+				g_embloader.menu->timeout == 0 &&
+				(g_embloader.menu->disabled || !embloader_hidden_menu_requested())
+			) {
+				loader = embloader_get_default_loader();
+				if (!loader) return EFI_NOT_FOUND;
+				flags = EMBLOADER_FLAG_AUTOBOOT;
+			} else {
+				if (g_embloader.menu->timeout == 0)
+					g_embloader.menu->timeout = -1;
+				if (before_menu) (void) before_menu();
+				status = embloader_menu_start(&loader, &flags);
+				if (EFI_ERROR(status)) return status;
+				if (!loader) continue;
+			}
+			status = embloader_try_boot(loader, flags, entry_selected);
+			g_embloader.menu->timeout = -1;
+			g_embloader.menu->disabled = false;
 			printf("Press any key to continue...\n");
 			efi_wait_any_key(gST->ConIn);
 		} else {

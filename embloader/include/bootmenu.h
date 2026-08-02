@@ -8,6 +8,8 @@ typedef enum embloader_arch embloader_arch;
 typedef enum embloader_loader_type embloader_loader_type;
 typedef struct embloader_loader embloader_loader;
 typedef struct embloader_menu embloader_menu;
+typedef EFI_STATUS (*embloader_before_menu)(void);
+typedef EFI_STATUS (*embloader_entry_selected)(const embloader_loader *loader);
 enum embloader_loader_type {
 	LOADER_NONE,
 	LOADER_EFISETUP,
@@ -29,6 +31,7 @@ enum embloader_arch {
 struct embloader_menu {
 	char *title;
 	int timeout;
+	bool disabled;
 	bool save_default;
 	char *default_entry;
 	list *loaders;
@@ -52,7 +55,10 @@ extern void embloader_sort_menu_loaders();
 extern embloader_loader_type embloader_menu_get_loader_type(const char *type_str);
 extern bool embloader_menu_is_complete();
 extern EFI_STATUS embloader_menu_start(embloader_loader **selected, uint64_t *flags);
-extern EFI_STATUS embloader_show_menu();
+extern EFI_STATUS embloader_show_menu(
+	embloader_before_menu before_menu,
+	embloader_entry_selected entry_selected
+);
 extern bool embloader_loader_is_reboot(embloader_loader *loader);
 extern bool embloader_loader_is_shutdown(embloader_loader *loader);
 #endif

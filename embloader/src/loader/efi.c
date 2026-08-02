@@ -5,6 +5,7 @@
 #include "efi-utils.h"
 #include "encode.h"
 #include "log.h"
+#include "sdboot.h"
 
 /**
  * @brief Start an EFI executable image
@@ -64,6 +65,7 @@ EFI_STATUS embloader_start_efi(
 		log_info("use cmdline %s", cmdline);
 	}
 	log_info("start efi image...");
+	(void) sdboot_set_exec_time();
 	status = gBS->StartImage(image, NULL, NULL);
 	if (EFI_ERROR(status))
 		log_error("StartImage failed: %s", efi_status_to_string(status));

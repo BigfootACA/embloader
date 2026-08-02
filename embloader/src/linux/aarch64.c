@@ -63,12 +63,13 @@ static EFI_STATUS linux_exit_boot_services(void) {
 
 static EFI_STATUS invoke_boot(
 	void* kernel, UINTN kernel_size, void* fdt, UINTN fdt_size,
-	void* initrd, UINTN initrd_size
+	void* initrd, UINTN initrd_size, linux_before_handoff before_handoff
 ) {
 	EFI_STATUS status;
 	linux_kernel_aarch64_main entry = (linux_kernel_aarch64_main) kernel;
 
 	log_info("booting Linux Image at %p with fdt at %p", kernel, fdt);
+	if (before_handoff) (void) before_handoff();
 	status = linux_exit_boot_services();
 	if (EFI_ERROR(status)) return status;
 
@@ -290,7 +291,10 @@ static EFI_STATUS prepare_kernel(
 	return EFI_SUCCESS;
 }
 
-EFI_STATUS linux_boot_use_aarch64(linux_data* data) {
+EFI_STATUS linux_boot_use_aarch64(
+	linux_data* data,
+	linux_before_handoff before_handoff
+) {
 	EFI_STATUS status;
 	struct linux_memory* memory = NULL;
 	void *kernel_allocation = NULL, *kernel = NULL;
@@ -356,7 +360,7 @@ EFI_STATUS linux_boot_use_aarch64(linux_data* data) {
 	fdt_size = fdt_totalsize(fdt);
 	status = invoke_boot(
 		kernel, kernel_size, fdt, fdt_size,
-		data->initramfs, data->initramfs_size
+		data->initramfs, data->initramfs_size, before_handoff
 	);
 
 done:

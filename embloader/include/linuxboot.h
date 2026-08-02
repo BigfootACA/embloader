@@ -5,6 +5,7 @@
 typedef struct linux_data linux_data;
 typedef struct linux_bootinfo linux_bootinfo;
 typedef struct linux_overlay linux_overlay;
+typedef EFI_STATUS (*linux_before_handoff)(void);
 
 struct linux_overlay {
 	char *path;
@@ -64,7 +65,10 @@ extern EFI_STATUS linux_initramfs_register(const void *ptr, size_t size, EFI_HAN
 extern EFI_STATUS linux_initramfs_unregister(EFI_HANDLE hand);
 extern EFI_STATUS linux_boot_efi(void *img, size_t len, const char *cmdline);
 extern EFI_STATUS linux_boot_use_efi(linux_data *data);
-extern EFI_STATUS linux_boot_use_aarch64(linux_data *data);
+extern EFI_STATUS linux_boot_use_aarch64(
+	linux_data *data,
+	linux_before_handoff before_handoff
+);
 extern linux_data* linux_data_load(linux_bootinfo *info);
 extern void linux_data_clean(linux_data *data);
 extern EFI_STATUS linux_install_fdt(fdt fdt);
