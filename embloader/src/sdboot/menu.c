@@ -372,11 +372,10 @@ EFI_STATUS sdboot_boot_load_menu() {
 		dir.handle = current_handle;
 		if (sdboot_check_fs(&dir)) {
 			status = sdboot_boot_load_dir(menu, &dir);
-			if (!EFI_ERROR(status)) {
-				log_info("loaded systemd-boot menu from current device");
-				have_success = true;
-				if (!use_multiple) goto done;
-			}
+			if (EFI_ERROR(status)) goto fail;
+			log_info("loaded systemd-boot menu from current device");
+			have_success = true;
+			if (!use_multiple) goto done;
 		}
 	}
 	if (have_success && !use_multiple) goto done;
@@ -386,11 +385,10 @@ EFI_STATUS sdboot_boot_load_menu() {
 		sdboot_check_fs(&dir)
 	) {
 		status = sdboot_boot_load_dir(menu, &dir);
-		if (!EFI_ERROR(status)) {
-			log_info("loaded systemd-boot menu from previous device");
-			have_success = true;
-			if (!use_multiple) goto done;
-		}
+		if (EFI_ERROR(status)) goto fail;
+		log_info("loaded systemd-boot menu from previous device");
+		have_success = true;
+		if (!use_multiple) goto done;
 	}
 	if (have_success && !use_multiple) goto done;
 	status = gBS->LocateHandleBuffer(
@@ -398,6 +396,7 @@ EFI_STATUS sdboot_boot_load_menu() {
 		&gEfiSimpleFileSystemProtocolGuid,
 		NULL, &handle_count, &handles
 	);
+	if (EFI_ERROR(status) && status != EFI_NOT_FOUND) goto fail;
 	if (!EFI_ERROR(status)) for (UINTN i = 0; i < handle_count; i++) {
 		dir.handle = handles[i];
 		bool attempted =
@@ -408,11 +407,10 @@ EFI_STATUS sdboot_boot_load_menu() {
 		if (attempted) continue;
 		if (!sdboot_check_fs(&dir)) continue;
 		status = sdboot_boot_load_dir(menu, &dir);
-		if (!EFI_ERROR(status)) {
-			log_info("loaded systemd-boot menu from scanned device %" PRIuPTR, i);
-			have_success = true;
-			if (!use_multiple) goto done;
-		}
+		if (EFI_ERROR(status)) goto fail;
+		log_info("loaded systemd-boot menu from scanned device %" PRIuPTR, i);
+		have_success = true;
+		if (!use_multiple) goto done;
 	}
 done:
 	if (handles) FreePool(handles);
@@ -421,4 +419,7 @@ done:
 		return EFI_NOT_FOUND;
 	}
 	return sdboot_boot_add_items();
+fail:
+	if (handles) FreePool(handles);
+	return status;
 }
