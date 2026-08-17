@@ -21,6 +21,7 @@ linux_data* linux_data_load(linux_bootinfo *info) {
 	linux_data *data = malloc(sizeof(linux_data));
 	if (!data) return NULL;
 	memset(data, 0, sizeof(linux_data));
+	data->loader = info->loader;
 	if (EFI_ERROR(linux_load_kernel(data, info))) goto fail;
 	if (EFI_ERROR(linux_load_initramfs(data, info))) goto fail;
 	if (EFI_ERROR(linux_load_bootargs(data, info))) goto fail;

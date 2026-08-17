@@ -1,6 +1,7 @@
 #ifndef LINUX_BOOT_H
 #define LINUX_BOOT_H
 #include "embloader.h"
+#include "bootmenu.h"
 
 typedef struct linux_data linux_data;
 typedef struct linux_bootinfo linux_bootinfo;
@@ -20,6 +21,7 @@ struct linux_bootinfo {
 	char *bootargs_override;
 	char *devicetree;
 	list *dtoverlay;
+	embloader_loader *loader;
 };
 
 struct linux_data {
@@ -29,6 +31,7 @@ struct linux_data {
 	size_t initramfs_size;
 	fdt fdt;
 	char *bootargs;
+	embloader_loader *loader;
 };
 
 struct linux_memory {
@@ -45,7 +48,7 @@ enum embloader_dtbo_on_error {
 };
 
 extern enum embloader_dtbo_on_error linux_get_dtbo_on_error();
-extern linux_bootinfo* linux_bootinfo_parse(confignode *node);
+extern linux_bootinfo* linux_bootinfo_parse(embloader_loader *loader);
 extern void linux_bootinfo_clean(linux_bootinfo *info);
 extern fdt linux_try_load_dtb(EFI_FILE_PROTOCOL *base, const char *dtb, bool grow);
 extern bool linux_load_default_dtb();

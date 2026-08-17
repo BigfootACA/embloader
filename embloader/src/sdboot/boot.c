@@ -19,6 +19,7 @@ linux_bootinfo* sdboot_boot_loader_to_linux_bootinfo(sdboot_boot_loader *loader)
 	linux_bootinfo *info = malloc(sizeof(linux_bootinfo));
 	if (!info) return NULL;
 	memset(info, 0, sizeof(linux_bootinfo));
+	info->loader = loader->item;
 	info->root = loader->root;
 	if (loader->kernel && !(info->kernel = strdup(loader->kernel))) goto fail;
 	if (loader->initramfs && !(info->initramfs = list_duplicate_chars(

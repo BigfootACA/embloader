@@ -94,11 +94,13 @@ static bool copy_optional_string_list(
  * @param node Pointer to confignode containing Linux boot configuration
  * @return linux_bootinfo* Pointer to parsed linux_bootinfo structure, or NULL on failure
  */
-linux_bootinfo* linux_bootinfo_parse(confignode *node) {
-	if (!node) return NULL;
+linux_bootinfo* linux_bootinfo_parse(embloader_loader *loader) {
+	if (!loader) return NULL;
+	confignode *node = loader->node;
 	linux_bootinfo *info = malloc(sizeof(linux_bootinfo));
 	if (!info) return NULL;
 	memset(info, 0, sizeof(linux_bootinfo));
+	info->loader = loader;
 	if (!copy_optional_string(node, "kernel", &info->kernel)) goto fail;
 	if (!copy_optional_string_list(
 		node, "initramfs", &info->initramfs

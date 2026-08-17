@@ -9,7 +9,7 @@ EFI_STATUS embloader_loader_boot_linux(embloader_loader* loader) {
 	log_error("direct Linux Image boot is only supported on AArch64");
 	return EFI_UNSUPPORTED;
 #else
-	linux_bootinfo* info = linux_bootinfo_parse(loader->node);
+	linux_bootinfo* info = linux_bootinfo_parse(loader);
 	if (!info) {
 		log_error("failed to parse Linux boot information");
 		return EFI_LOAD_ERROR;

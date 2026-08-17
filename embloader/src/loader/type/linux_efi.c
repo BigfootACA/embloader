@@ -13,7 +13,7 @@
  */
 EFI_STATUS embloader_loader_boot_linux_efi(embloader_loader *loader) {
 	if (!loader || !loader->node) return EFI_INVALID_PARAMETER;
-	linux_bootinfo *info = linux_bootinfo_parse(loader->node);
+	linux_bootinfo *info = linux_bootinfo_parse(loader);
 	if (!info) {
 		log_error("failed to parse linux-efi boot info");
 		return EFI_LOAD_ERROR;
