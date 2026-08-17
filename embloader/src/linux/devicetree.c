@@ -158,6 +158,10 @@ bool linux_load_default_dtb(embloader_loader *loader, bool *depends_on_loader) {
 	list* dtbs = embloader_dt_get_default_dtb(loader, &resolved_depends_on_loader);
 	if (depends_on_loader)
 		*depends_on_loader = resolved_depends_on_loader;
+	if (resolved_depends_on_loader && g_embloader.fdt) {
+		free(g_embloader.fdt);
+		g_embloader.fdt = NULL;
+	}
 	list_reverse(dtbs);
 	if ((p = list_first(dtbs))) do {
 		LIST_DATA_DECLARE(dtb, p, char*);

@@ -13,10 +13,18 @@
  * @return linux_data* Pointer to loaded linux_data structure, or NULL on failure
  */
 linux_data* linux_data_load(linux_bootinfo *info) {
+	bool depends_on_loader = false;
+	list *default_dtbs;
 	if (!info || !info->root) return NULL;
 	if (!info->kernel) {
 		log_error("no kernel specified");
 		return NULL;
+	}
+	default_dtbs = embloader_dt_get_default_dtb(info->loader, &depends_on_loader);
+	list_free_all_def(default_dtbs);
+	if (depends_on_loader && g_embloader.fdt) {
+		free(g_embloader.fdt);
+		g_embloader.fdt = NULL;
 	}
 	linux_data *data = malloc(sizeof(linux_data));
 	if (!data) return NULL;
