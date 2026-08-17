@@ -316,7 +316,7 @@ EFI_STATUS embloader_show_menu(
 			printf("Press any key to continue...\n");
 			efi_wait_any_key(gST->ConIn);
 		} else {
-			status = embloader_prepare_boot();
+			status = embloader_prepare_boot(NULL);
 			if (EFI_ERROR(status)) return status;
 			return EFI_NOT_STARTED;
 		}

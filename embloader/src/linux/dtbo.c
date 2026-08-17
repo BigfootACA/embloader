@@ -47,12 +47,12 @@ enum embloader_dtbo_on_error linux_get_dtbo_on_error() {
  *
  * @return list* List of resolved DTBO directory paths, or NULL if no DTBO directory configured
  */
-list* embloader_dt_get_dtbo_dir() {
+list* embloader_dt_get_dtbo_dir(embloader_loader *loader) {
 	char *dtbo_dir = confignode_path_get_string(
 		g_embloader.config, "devicetree.dtbo-dir", NULL, NULL
 	);
 	if (!dtbo_dir) return NULL;
-	list *ret = embloader_resolve_path(dtbo_dir);
+	list *ret = embloader_resolve_path(loader, dtbo_dir, NULL);
 	free(dtbo_dir);
 	return ret;
 }
@@ -272,11 +272,11 @@ bool linux_load_dtbo(EFI_FILE_PROTOCOL *base, fdt fdt, confignode *node, list *d
  *             -1 if overlays fail under the configured error policy,
  *             0 if no overlays configured
  */
-int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error) {
+int linux_load_dtbos(embloader_loader *loader, EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum embloader_dtbo_on_error on_error) {
 	if (!fdt) return -1;
 	int applied_count = 0;
 	bool is_empty = true;
-	list *dtbo_dir = embloader_dt_get_dtbo_dir();
+	list *dtbo_dir = embloader_dt_get_dtbo_dir(loader);
 	if (!dtbo_dir) log_warning(
 		"no dtbo directory configured; only absolute overlay paths can be used"
 	);
@@ -299,9 +299,9 @@ int linux_load_dtbos(EFI_FILE_PROTOCOL *base, fdt fdt, list *alt_dir, enum emblo
 	return applied_count;
 }
 
-static EFI_STATUS prepare_dtoverlay_fdt(linux_data *data) {
+static EFI_STATUS prepare_dtoverlay_fdt(embloader_loader *loader, linux_data *data) {
 	if (data->fdt || g_embloader.fdt) return EFI_SUCCESS;
-	linux_load_default_dtb();
+	linux_load_default_dtb(loader, NULL);
 	if (g_embloader.fdt) return EFI_SUCCESS;
 	EFI_STATUS status = embloader_fetch_fdt();
 	return status == EFI_NOT_FOUND ? EFI_SUCCESS : status;
@@ -328,7 +328,7 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 			g_embloader.config, "devicetree.overlays", false
 		)
 	) return EFI_SUCCESS;
-	EFI_STATUS status = prepare_dtoverlay_fdt(data);
+	EFI_STATUS status = prepare_dtoverlay_fdt(data->loader, data);
 	if (EFI_ERROR(status)) return status;
 	if (!data->fdt && !g_embloader.fdt) {
 		log_warning("no device tree loaded, skip apply dtbo");
@@ -349,8 +349,8 @@ EFI_STATUS linux_load_dtoverlay(linux_data *data, linux_bootinfo *info) {
 		}
 		memcpy(fdt_backup, xfdt, fdt_size);
 	}
-	list *dtbo_dir = embloader_dt_get_dtbo_dir();
-	ret = linux_load_dtbos(info->root, xfdt, NULL, on_error);
+	list *dtbo_dir = embloader_dt_get_dtbo_dir(data->loader);
+	ret = linux_load_dtbos(data->loader, info->root, xfdt, NULL, on_error);
 	if (ret < 0){
 		if (on_error == DTBO_ERROR_FAILURE) {
 			list_free_all_def(dtbo_dir);

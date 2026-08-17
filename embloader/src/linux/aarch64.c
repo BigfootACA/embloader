@@ -306,7 +306,7 @@ EFI_STATUS linux_boot_use_aarch64(
 
 	if (!data) return EFI_INVALID_PARAMETER;
 	if (!data->fdt && !g_embloader.fdt) {
-		status = embloader_prepare_boot();
+		status = embloader_prepare_boot(data->loader);
 		if (EFI_ERROR(status)) return status;
 	}
 	source_fdt = data->fdt ?: g_embloader.fdt;

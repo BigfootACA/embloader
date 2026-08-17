@@ -206,9 +206,9 @@ EFI_STATUS embloader_fetch_fdt() {
  *
  * @return EFI_STATUS Returns EFI_SUCCESS on success, or appropriate error code on failure
  */
-EFI_STATUS embloader_prepare_boot() {
+EFI_STATUS embloader_prepare_boot(embloader_loader *loader) {
 	int ret;
-	if (!linux_load_default_dtb())
+	if (!linux_load_default_dtb(loader, NULL))
 		log_warning("load device tree failed");
 	if (!g_embloader.fdt) embloader_fetch_fdt();
 	if (!g_embloader.fdt) {
@@ -230,7 +230,7 @@ EFI_STATUS embloader_prepare_boot() {
 		}
 		memcpy(fdt_backup, g_embloader.fdt, fdt_size);
 	}
-	ret = linux_load_dtbos(g_embloader.dir.root, g_embloader.fdt, NULL, on_error);
+	ret = linux_load_dtbos(loader, g_embloader.dir.root, g_embloader.fdt, NULL, on_error);
 	if (ret < 0) {
 		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
 			log_error("failed to apply dtbos, reverting to original device tree");

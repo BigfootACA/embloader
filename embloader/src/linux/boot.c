@@ -22,7 +22,7 @@ EFI_STATUS linux_boot_use_efi(linux_data *data) {
 			return status;
 		}
 	} else {
-		status = embloader_prepare_boot();
+		status = embloader_prepare_boot(data->loader);
 		if (EFI_ERROR(status)) log_warning(
 			"prepare device tree failed: %s; continuing without one",
 			efi_status_to_string(status)

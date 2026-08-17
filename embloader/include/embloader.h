@@ -6,6 +6,7 @@
 #include "list.h"
 typedef void* fdt;
 typedef struct sdboot_menu sdboot_menu;
+typedef struct embloader_loader embloader_loader;
 typedef struct embloader_menu embloader_menu;
 typedef struct embloader_dir embloader_dir;
 typedef struct embloader embloader;
@@ -37,16 +38,16 @@ extern bool embloader_try_match(confignode *node);
 extern bool embloader_try_matches(confignode *node);
 extern bool embloader_choose_device();
 extern void embloader_load_ktype();
-extern list* embloader_resolve_path(const char *path);
-extern bool embloader_dt_get_dtb_id(list **ids);
-extern list* embloader_dt_get_dtbo_dir();
-extern list* embloader_dt_get_default_dtb();
+extern list* embloader_resolve_path(embloader_loader *loader, const char *path, bool *depends_on_loader);
+extern bool embloader_dt_get_dtb_id(embloader_loader *loader, list **ids);
+extern list* embloader_dt_get_dtbo_dir(embloader_loader *loader);
+extern list* embloader_dt_get_default_dtb(embloader_loader *loader, bool *depends_on_loader);
 extern EFI_STATUS embloader_load_dtbo_config(confignode *node, const char *buffer);
 extern EFI_STATUS embloader_load_dtbo_config_path(confignode *node, EFI_FILE_PROTOCOL *base, const char *path);
 extern EFI_STATUS embloader_load_cmdline_config(confignode *node, const char *buffer);
 extern EFI_STATUS embloader_load_cmdline_config_path(confignode *node, EFI_FILE_PROTOCOL *base, const char *path);
 extern EFI_STATUS embloader_install_fdt(void *fdt);
-extern EFI_STATUS embloader_prepare_boot();
+extern EFI_STATUS embloader_prepare_boot(embloader_loader *loader);
 extern EFI_STATUS embloader_fetch_fdt();
 extern EFI_STATUS embloader_start_efi(
 	EFI_DEVICE_PATH_PROTOCOL *dp,

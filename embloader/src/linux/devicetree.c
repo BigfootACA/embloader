@@ -17,7 +17,7 @@
  * @param ids Output list of DTB ID strings, or NULL when no IDs are found
  * @return bool true on success, false on allocation or copy failure
  */
-bool embloader_dt_get_dtb_id(list **ids) {
+bool embloader_dt_get_dtb_id(embloader_loader *loader, list **ids) {
 	if (!ids) return false;
 	*ids = NULL;
 	list *p;
@@ -53,12 +53,13 @@ fail:
  *
  * @return list* List of resolved DTB file paths, or NULL if no default DTB configured
  */
-list* embloader_dt_get_default_dtb() {
+list* embloader_dt_get_default_dtb(embloader_loader *loader, bool *depends_on_loader) {
+	if (depends_on_loader) *depends_on_loader = false;
 	char *def_dtb = confignode_path_get_string(
 		g_embloader.config, "devicetree.default-dtb", NULL, NULL
 	);
 	if (!def_dtb) return NULL;
-	list *ret = embloader_resolve_path(def_dtb);
+	list *ret = embloader_resolve_path(loader, def_dtb, depends_on_loader);
 	free(def_dtb);
 	return ret;
 }
@@ -145,9 +146,12 @@ fail:
  *
  * @return bool Returns true if default DTB was successfully loaded, false otherwise
  */
-bool linux_load_default_dtb() {
+bool linux_load_default_dtb(embloader_loader *loader, bool *depends_on_loader) {
+	bool resolved_depends_on_loader = false;
 	list *p;
-	list* dtbs = embloader_dt_get_default_dtb();
+	list* dtbs = embloader_dt_get_default_dtb(loader, &resolved_depends_on_loader);
+	if (depends_on_loader)
+		*depends_on_loader = resolved_depends_on_loader;
 	list_reverse(dtbs);
 	if ((p = list_first(dtbs))) do {
 		LIST_DATA_DECLARE(dtb, p, char*);

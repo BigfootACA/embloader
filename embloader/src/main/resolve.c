@@ -7,14 +7,14 @@
 #include <stdint.h>
 #include <stdio.h>
 
-static bool ktype_getter(list **values) {
+static bool ktype_getter(embloader_loader *loader, list **values) {
 	if (!values) return false;
 	*values = NULL;
 	if (!g_embloader.ktype) return true;
 	return list_obj_add_new_strdup(values, g_embloader.ktype) == 0;
 }
 
-static bool profile_getter(list **values) {
+static bool profile_getter(embloader_loader *loader, list **values) {
 	if (!values) return false;
 	*values = NULL;
 	list *p;
@@ -32,7 +32,7 @@ static bool profile_getter(list **values) {
 
 static struct variable_getter {
 	const char *name;
-	bool (*getter)(list **values);
+	bool (*getter)(embloader_loader *loader, list **values);
 } variable_getters[] = {
 	{"ktype", ktype_getter},
 	{"profile", profile_getter},
@@ -41,6 +41,7 @@ static struct variable_getter {
 };
 
 static char* replace_variable(
+	embloader_loader *loader,
 	const char *str,
 	const char *var,
 	const char *value,
@@ -105,18 +106,18 @@ static char* replace_variable(
 	return result;
 }
 
-static bool resolve_path_recursive(list **result, const char *path, int var_index) {
+static bool resolve_path_recursive(embloader_loader *loader, list **result, const char *path, int var_index) {
 	if (!variable_getters[var_index].name) {
 		return list_obj_add_new_strdup(result, path) == 0;
 	}
 	const char *var_name = variable_getters[var_index].name;
 	list *values = NULL;
-	if (!variable_getters[var_index].getter(&values)) {
+	if (!variable_getters[var_index].getter(loader, &values)) {
 		if (values) list_free_all_def(values);
 		return false;
 	}
 	if (!values) {
-		return resolve_path_recursive(result, path, var_index + 1);
+		return resolve_path_recursive(loader, result, path, var_index + 1);
 	}
 	bool handled = false, success = true;
 	list *v;
@@ -124,26 +125,27 @@ static bool resolve_path_recursive(list **result, const char *path, int var_inde
 		LIST_DATA_DECLARE(value, v, char*);
 		if (!value) continue;
 		bool replaced = false;
-		char *new_path = replace_variable(path, var_name, value, &replaced);
+		char *new_path = replace_variable(loader, path, var_name, value, &replaced);
 		if (!new_path) {
 			success = false;
 			break;
 		}
 		handled = true;
-		success = resolve_path_recursive(result, new_path, var_index + 1);
+		success = resolve_path_recursive(loader, result, new_path, var_index + 1);
 		free(new_path);
 		if (!success || !replaced) break;
 	} while ((v = v->next));
 	list_free_all_def(values);
 	if (success && !handled)
-		success = resolve_path_recursive(result, path, var_index + 1);
+		success = resolve_path_recursive(loader, result, path, var_index + 1);
 	return success;
 }
 
-list* embloader_resolve_path(const char *path) {
+list* embloader_resolve_path(embloader_loader *loader, const char *path, bool *depends_on_loader) {
+	if (depends_on_loader) *depends_on_loader = false;
 	if (!path) return NULL;
 	list *result = NULL;
-	if (!resolve_path_recursive(&result, path, 0)) {
+	if (!resolve_path_recursive(loader, &result, path, 0)) {
 		list_free_all_def(result);
 		return NULL;
 	}
