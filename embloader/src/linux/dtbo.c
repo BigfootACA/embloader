@@ -300,8 +300,10 @@ int linux_load_dtbos(embloader_loader *loader, EFI_FILE_PROTOCOL *base, fdt fdt,
 }
 
 static EFI_STATUS prepare_dtoverlay_fdt(embloader_loader *loader, linux_data *data) {
-	if (data->fdt || g_embloader.fdt) return EFI_SUCCESS;
-	linux_load_default_dtb(loader, NULL);
+	bool depends_on_loader = false;
+	if (data->fdt) return EFI_SUCCESS;
+	if (linux_load_default_dtb(loader, &depends_on_loader)) return EFI_SUCCESS;
+	if (depends_on_loader) return EFI_NOT_FOUND;
 	if (g_embloader.fdt) return EFI_SUCCESS;
 	EFI_STATUS status = embloader_fetch_fdt();
 	return status == EFI_NOT_FOUND ? EFI_SUCCESS : status;

@@ -208,8 +208,11 @@ EFI_STATUS embloader_fetch_fdt() {
  */
 EFI_STATUS embloader_prepare_boot(embloader_loader *loader) {
 	int ret;
-	if (!linux_load_default_dtb(loader, NULL))
+	bool depends_on_loader = false;
+	if (!linux_load_default_dtb(loader, &depends_on_loader)) {
 		log_warning("load device tree failed");
+		if (depends_on_loader) return EFI_NOT_FOUND;
+	}
 	if (!g_embloader.fdt) embloader_fetch_fdt();
 	if (!g_embloader.fdt) {
 		log_warning("no device tree loaded");
