@@ -2,6 +2,8 @@
 #define _GNU_SOURCE
 #endif
 #include "embloader.h"
+#include "bootmenu.h"
+#include "sdboot.h"
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
@@ -30,15 +32,66 @@ static bool profile_getter(embloader_loader *loader, list **values) {
 	return true;
 }
 
+static bool version_getter(embloader_loader *loader, list **values) {
+	char *s;
+	if (!loader || !values) return false;
+	*values = NULL;
+	if (loader->type == LOADER_SDBOOT && loader->extra) {
+		sdboot_boot_loader *item = loader->extra;
+		if (item->version) return list_obj_add_new_strdup(values, item->version) == 0;
+	}
+	if ((s = confignode_path_get_string(loader->node, "version", NULL, NULL))) {
+		if (list_obj_add_new(values, s) == 0) return true;
+		free(s);
+		return false;
+	}
+	return true;
+}
+
 static struct variable_getter {
 	const char *name;
 	bool (*getter)(embloader_loader *loader, list **values);
+	bool depends_on_loader;
 } variable_getters[] = {
-	{"ktype", ktype_getter},
-	{"profile", profile_getter},
-	{"dtb-id", embloader_dt_get_dtb_id},
-	{NULL, NULL}
+	{"version", version_getter, true},
+	{"ktype", ktype_getter, false},
+	{"profile", profile_getter, false},
+	{"dtb-id", embloader_dt_get_dtb_id, false},
+	{NULL, NULL, false}
 };
+
+static char* variable_pattern(const char *name) {
+	if (!name) return NULL;
+	size_t name_len = strlen(name);
+	if (name_len > SIZE_MAX - 3) return NULL;
+	size_t pattern_len = name_len + 2;
+	char *pattern = malloc(pattern_len + 1);
+	if (!pattern) return NULL;
+	pattern[0] = '{';
+	memcpy(pattern + 1, name, name_len);
+	pattern[pattern_len - 1] = '}';
+	pattern[pattern_len] = 0;
+	return pattern;
+}
+
+static bool path_contains_variable(const char *path, const char *name) {
+	if (!path || !name) return false;
+	char *pattern = variable_pattern(name);
+	if (!pattern) return false;
+	bool found = strstr(path, pattern) != NULL;
+	free(pattern);
+	return found;
+}
+
+static bool path_depends_on_loader(const char *path) {
+	int i;
+	if (!path) return false;
+	for (i = 0; variable_getters[i].name; i++) if (
+		variable_getters[i].depends_on_loader &&
+		path_contains_variable(path, variable_getters[i].name)
+	) return true;
+	return false;
+}
 
 static char* replace_variable(
 	embloader_loader *loader,
@@ -49,15 +102,9 @@ static char* replace_variable(
 ) {
 	if (!str || !var || !value) return NULL;
 	if (replaced) *replaced = false;
-	size_t var_len = strlen(var);
-	if (var_len > SIZE_MAX - 3) return NULL;
-	size_t pattern_len = var_len + 2;
-	char *pattern = malloc(pattern_len + 1);
+	char *pattern = variable_pattern(var);
 	if (!pattern) return NULL;
-	pattern[0] = '{';
-	memcpy(pattern + 1, var, var_len);
-	pattern[pattern_len - 1] = '}';
-	pattern[pattern_len] = 0;
+	size_t pattern_len = strlen(pattern);
 	const char *pos = strstr(str, pattern);
 	if (!pos) {
 		free(pattern);
@@ -144,6 +191,7 @@ static bool resolve_path_recursive(embloader_loader *loader, list **result, cons
 list* embloader_resolve_path(embloader_loader *loader, const char *path, bool *depends_on_loader) {
 	if (depends_on_loader) *depends_on_loader = false;
 	if (!path) return NULL;
+	if (depends_on_loader) *depends_on_loader = path_depends_on_loader(path);
 	list *result = NULL;
 	if (!resolve_path_recursive(loader, &result, path, 0)) {
 		list_free_all_def(result);
