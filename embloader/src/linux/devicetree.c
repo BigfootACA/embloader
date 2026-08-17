@@ -6,6 +6,7 @@
 #include "efi-utils.h"
 #include "file-utils.h"
 #include "readable.h"
+#include "sdboot.h"
 #include <libfdt.h>
 
 /**
@@ -147,7 +148,12 @@ fail:
  * @return bool Returns true if default DTB was successfully loaded, false otherwise
  */
 bool linux_load_default_dtb(embloader_loader *loader, bool *depends_on_loader) {
+	EFI_FILE_PROTOCOL *root = g_embloader.dir.root;
 	bool resolved_depends_on_loader = false;
+	if (loader && loader->type == LOADER_SDBOOT && loader->extra) {
+		sdboot_boot_loader *item = loader->extra;
+		if (item->root) root = item->root;
+	}
 	list *p;
 	list* dtbs = embloader_dt_get_default_dtb(loader, &resolved_depends_on_loader);
 	if (depends_on_loader)
@@ -157,7 +163,7 @@ bool linux_load_default_dtb(embloader_loader *loader, bool *depends_on_loader) {
 		LIST_DATA_DECLARE(dtb, p, char*);
 		if (!dtb) continue;
 		log_debug("default dtb %s", dtb);
-		fdt fdt = linux_try_load_dtb(g_embloader.dir.root, dtb, true);
+		fdt fdt = linux_try_load_dtb(root, dtb, true);
 		if (!fdt) continue;
 		if (g_embloader.fdt)
 			free(g_embloader.fdt);
