@@ -23,6 +23,7 @@ struct memblk {
 };
 
 void _free_r(struct _reent *r, void *ptr){
+	if (!ptr) return;
 	struct memblk *blk_hdr = BASE_CR(ptr, struct memblk, data);
 	struct memblk *blk_end = ptr + blk_hdr->size;
 	assert (blk_hdr->magic == MAGIC);
@@ -33,9 +34,10 @@ void _free_r(struct _reent *r, void *ptr){
 
 void* _malloc_r(struct _reent *r, size_t size) {
 	assert(size < UINT32_MAX);
+	if (size > SIZE_MAX - sizeof(struct memblk) * 2) return NULL;
 	struct memblk *blk_hdr = AllocatePool(sizeof(struct memblk) * 2 + size);
-	struct memblk *blk_end = (void*)blk_hdr + sizeof(struct memblk) + size;
 	if (!blk_hdr) return NULL;
+	struct memblk *blk_end = (void*)blk_hdr + sizeof(struct memblk) + size;
 	memset(blk_hdr, 0, sizeof(struct memblk) * 2 + size);
 	blk_hdr->magic = MAGIC;
 	blk_hdr->size = size;
@@ -46,6 +48,7 @@ void* _malloc_r(struct _reent *r, size_t size) {
 
 void* _calloc_r(struct _reent *r, size_t nmemb, size_t size) {
 	ASSERT(size < UINT32_MAX);
+	if (nmemb != 0 && size > SIZE_MAX / nmemb) return NULL;
 	void *b = _malloc_r(r, nmemb * size);
 	if (b) memset(b, 0, nmemb * size);
 	return b;
@@ -55,12 +58,13 @@ void* _realloc_r(struct _reent *r, void *ptr, size_t size) {
 	ASSERT(size < UINT32_MAX);
 	if (!ptr) return _malloc_r(r, size);
 	struct memblk *blk = BASE_CR(ptr, struct memblk, data);
+	size_t old_size = blk->size;
 	void *newptr = _malloc_r(r, size);
 	if (!newptr) return NULL;
-	memcpy(newptr, ptr, MIN(blk->size, size));
+	memcpy(newptr, ptr, MIN(old_size, size));
 	_free_r(r, ptr);
-	if (size > blk->size)
-		memset((char*)newptr + blk->size, 0, size - blk->size);
+	if (size > old_size)
+		memset((char*)newptr + old_size, 0, size - old_size);
 	return newptr;
 }
 
@@ -187,9 +191,9 @@ _ssize_t _write_r(struct _reent *r, int fd, const void *buf, size_t count) {
 			ctx.in.allow_invalid = true;
 			ctx.in.transfers = transfers;
 			st = encode_convert(&ctx);
-			if (EFI_ERROR(st)) break;
-			if (ctx.out.dst_wrote == 0) break;
-			buffer[sizeof(buffer) / sizeof(CHAR16) - 1]=0;
+			if (EFI_ERROR(st) && st != EFI_OUT_OF_RESOURCES) break;
+			if (ctx.out.dst_wrote == 0 || ctx.out.src_used == 0) break;
+			buffer[ctx.out.dst_wrote / sizeof(CHAR16)] = 0;
 			st = out->OutputString(out, buffer);
 			if (EFI_ERROR(st)) break;
 			str = (const char*) ctx.out.src_end;
