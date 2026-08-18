@@ -902,6 +902,7 @@ EFI_STATUS embloader_tui_menu_start(embloader_loader **selected, uint64_t *flags
 					*selected = ctx.def_loader;
 					ctx.flags |= EMBLOADER_FLAG_AUTOBOOT;
 					if (flags) *flags = ctx.flags;
+					ctx.out->SetAttribute(ctx.out, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
 					return EFI_SUCCESS;
 				}
 				gBS->Stall(100000);
