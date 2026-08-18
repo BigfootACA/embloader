@@ -66,7 +66,7 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flag
 	*selected = NULL;
 	printf("\n");
 	printf("========================================\n");
-	printf("= Embedded Bootloader menu\n");
+	printf("= Embedded Bootloader " EMBLOADER_VERSION " menu\n");
 	if (menu->title && menu->title[0])
 		printf("= Menu:    %s\n", menu->title);
 	if (g_embloader.device_name && g_embloader.device_name[0])

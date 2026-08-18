@@ -508,7 +508,7 @@ static void show_editor_dialog(struct tui_context *ctx, embloader_loader *item) 
 
 static void draw_top(struct tui_context *ctx) {
 	set_clear_line(ctx, 0, 0, EFI_TEXT_ATTR(EFI_WHITE, EFI_BLUE));
-	write_at(ctx, 2, 0, L"Embedded Bootloader");
+	write_at(ctx, 2, 0, L"Embedded Bootloader " EMBLOADER_VERSION);
 	UINTN row_start = 2;
 	for (UINTN i = row_start; i < 5; i++)
 		set_clear_line(ctx, 2, i, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));

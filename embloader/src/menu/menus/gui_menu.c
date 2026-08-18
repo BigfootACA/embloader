@@ -459,7 +459,7 @@ static void serial_alt_init(struct gui_menu_ctx *ctx) {
 	);
 	if (EFI_ERROR(status) || !ctx->serial)
 		log_warning("no serial console found: %s", efi_status_to_string(status));
-	printf_serial(ctx, "\r\nEmbedded Boot Loader GUI Menu Serial Alternative\r\n");
+	printf_serial(ctx, "\r\nEmbedded Boot Loader " EMBLOADER_VERSION " GUI Menu Serial Alternative\r\n");
 }
 
 static void set_graphics_mode(bool enable) {
