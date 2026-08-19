@@ -43,6 +43,7 @@
   device.c
   dir.c
   dtbo.c
+  extlinux.c
   main.c
   match.c
   resolve.c

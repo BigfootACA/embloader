@@ -82,6 +82,9 @@ EFI_STATUS EFIAPI efi_main(
 		);
 		return status;
 	}
+	status = embloader_extlinux_load_menu();
+	if (EFI_ERROR(status) && status != EFI_NOT_FOUND && status != EFI_UNSUPPORTED)
+		log_warning("failed to load extlinux menu: %s", efi_status_to_string(status));
 	status = sdboot_init_menu_variables();
 	if (EFI_ERROR(status)) log_warning(
 		"failed to initialize boot loader menu variables: %s",

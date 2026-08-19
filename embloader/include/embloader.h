@@ -32,6 +32,7 @@ extern embloader g_embloader;
 extern void find_embloader_folder(embloader_dir *dir);
 extern bool embloader_init();
 extern bool embloader_load_configs();
+extern EFI_STATUS embloader_extlinux_load_menu();
 extern bool embloader_load_config_one(const char *name);
 extern bool embloader_load_smbios();
 extern bool embloader_try_match(confignode *node);
