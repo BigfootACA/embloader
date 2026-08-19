@@ -4,6 +4,7 @@
 #include "file-utils.h"
 #include "efi-utils.h"
 #include "str-utils.h"
+#include <Library/UefiBootServicesTableLib.h>
 
 static bool sdboot_file_info_name_is_valid(EFI_FILE_INFO *info, UINTN size) {
 	UINTN offset = OFFSET_OF(EFI_FILE_INFO, FileName);
@@ -44,6 +45,7 @@ EFI_STATUS sdboot_boot_load_file(
 	size_t flen = 0;
 	sdboot_boot_loader *loader = NULL;
 	EFI_FILE_PROTOCOL *file;
+	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs = NULL;
 	const char *name = NULL;
 	size_t name_len = 0;
 	char *p;
@@ -88,7 +90,9 @@ EFI_STATUS sdboot_boot_load_file(
 			goto fail;
 		}
 		loader->root_handle = dir->handle;
-		loader->root = dir->root;
+		status = gBS->HandleProtocol(dir->handle, &gEfiSimpleFileSystemProtocolGuid, (VOID**)&fs);
+		if (!EFI_ERROR(status) && fs) status = fs->OpenVolume(fs, &loader->root);
+		loader->root_owned = loader->root != NULL;
 		if (EFI_ERROR(status) || !loader->root) {
 			log_error(
 				"open root directory failed: %s",
@@ -97,6 +101,7 @@ EFI_STATUS sdboot_boot_load_file(
 			if (!EFI_ERROR(status)) status = EFI_LOAD_ERROR;
 			goto fail;
 		}
+		loader->root_owned = true;
 		log_debug("created sdboot loader %s", loader->name);
 	}
 	status = sdboot_boot_parse_content(

@@ -127,14 +127,17 @@ void sdboot_boot_menu_clean(sdboot_boot_menu* menu) {
 /**
  * @brief Clean up all resources owned by a boot loader entry structure
  *
- * Frees all allocated strings and lists, but does not close EFI file handles.
+ * Frees all allocated strings and lists, and closes an owned EFI file handle.
  * The structure is reset to zero after cleanup.
  *
  * @param loader the boot loader structure to clean up (may be NULL - no-op)
  */
 void sdboot_boot_loader_clean(sdboot_boot_loader* loader) {
 	if (!loader) return;
-	if (loader->root) loader->root = NULL;
+	if (loader->root_owned && loader->root)
+		loader->root->Close(loader->root);
+	loader->root = NULL;
+	loader->root_owned = false;
 	if (loader->name) free(loader->name);
 	if (loader->title) free(loader->title);
 	if (loader->version) free(loader->version);

@@ -57,6 +57,7 @@ struct sdboot_boot_menu {
 struct sdboot_boot_loader {
 	EFI_HANDLE root_handle;  ///< Handle of device containing the config file
 	EFI_FILE_PROTOCOL *root; ///< Root directory of the config file
+	bool root_owned;         ///< Whether this loader owns and closes root
 	char *name;              ///< Entry name (from filename)
 	char *title;             ///< Display title for menu
 	char *version;           ///< Version string (as ktype)
