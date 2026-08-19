@@ -246,7 +246,9 @@ int list_free_all_reverse(list* point, int (*datafree)(void*)) {
 }
 
 int list_remove_free(list* point, int (*datafree)(void*)) {
-	return list_remove(point) < 0 ? -errno : list_free_item(point, datafree);
+	if (!point) ERET(EINVAL);
+	if (!list_is_alone(point) && list_remove(point) < 0) return -errno;
+	return list_free_item(point, datafree);
 }
 
 bool list_is_alone(list* point) {
