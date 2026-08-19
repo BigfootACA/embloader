@@ -395,6 +395,7 @@ list* list_search_case_string(list* lst, const char* str) {
 
 int list_reverse(list* lst) {
 	list *l, *n;
+	if (!lst) ERET(EINVAL);
 	if ((l = list_first(lst))) do {
 		n = l->prev;
 		l->prev = l->next;
