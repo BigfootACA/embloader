@@ -5,6 +5,7 @@
 #include "log.h"
 #include "embloader.h"
 #include "linuxboot.h"
+#include "sdboot.h"
 #include "efi-utils.h"
 #include "efi-dt-fixup.h"
 
@@ -209,6 +210,11 @@ EFI_STATUS embloader_fetch_fdt() {
 EFI_STATUS embloader_prepare_boot(embloader_loader *loader) {
 	int ret;
 	bool depends_on_loader = false;
+	EFI_FILE_PROTOCOL *root = g_embloader.dir.root;
+	if (loader && loader->type == LOADER_SDBOOT && loader->extra) {
+		sdboot_boot_loader *item = loader->extra;
+		if (item->root) root = item->root;
+	}
 	if (!linux_load_default_dtb(loader, &depends_on_loader)) {
 		log_warning("load device tree failed");
 		if (depends_on_loader) return EFI_NOT_FOUND;
@@ -233,7 +239,7 @@ EFI_STATUS embloader_prepare_boot(embloader_loader *loader) {
 		}
 		memcpy(fdt_backup, g_embloader.fdt, fdt_size);
 	}
-	ret = linux_load_dtbos(loader, g_embloader.dir.root, g_embloader.fdt, NULL, on_error);
+	ret = linux_load_dtbos(loader, root, g_embloader.fdt, NULL, on_error);
 	if (ret < 0) {
 		if (on_error == DTBO_ERROR_REVERT && fdt_backup) {
 			log_error("failed to apply dtbos, reverting to original device tree");
