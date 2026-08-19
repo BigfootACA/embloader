@@ -28,7 +28,11 @@ static bool embloader_check_fs(embloader_dir *dir) {
 	);
 	if (EFI_ERROR(status) || !fs) return false;
 	status = fs->OpenVolume(fs, &dir->root);
-	if (EFI_ERROR(status) || !dir->root) return false;
+	if (EFI_ERROR(status) || !dir->root) {
+		if (dir->root) dir->root->Close(dir->root);
+		dir->root = NULL;
+		return false;
+	}
 	status = efi_open(
 		dir->root, &dir->dir,
 		"embloader",
@@ -38,6 +42,8 @@ static bool embloader_check_fs(embloader_dir *dir) {
 	if (EFI_ERROR(status) || !dir->dir) {
 		if (status != EFI_NOT_FOUND)
 			log_debug("open embloader folder failed: %s", efi_status_to_string(status));
+		if (dir->dir) dir->dir->Close(dir->dir);
+		dir->dir = NULL;
 		dir->root->Close(dir->root);
 		dir->root = NULL;
 		return false;
