@@ -76,6 +76,7 @@ EFI_STATUS linux_initramfs_register(const void *ptr, size_t size, EFI_HANDLE *ha
 	EFI_HANDLE handle;
 	struct initrd_loader *loader;
 	if (!ptr || size == 0 || !hand) return EFI_INVALID_PARAMETER;
+	*hand = NULL;
 	status = gBS->LocateDevicePath(&gEfiLoadFile2ProtocolGuid, &dp, &handle);
 	if (!EFI_ERROR(status)) return EFI_ALREADY_STARTED;
 	if (status != EFI_NOT_FOUND) return status;
