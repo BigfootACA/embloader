@@ -12,6 +12,7 @@ static bool sdboot_check_fs(embloader_dir *dir) {
 	EFI_STATUS status;
 	EFI_SIMPLE_FILE_SYSTEM_PROTOCOL *fs;
 	if (!dir) return false;
+	if (dir->root) dir->root->Close(dir->root);
 	dir->root = NULL;
 	status = gBS->HandleProtocol(
 		dir->handle,
@@ -20,7 +21,11 @@ static bool sdboot_check_fs(embloader_dir *dir) {
 	);
 	if (EFI_ERROR(status) || !fs) return false;
 	status = fs->OpenVolume(fs, &dir->root);
-	if (EFI_ERROR(status) || !dir->root) return false;
+	if (EFI_ERROR(status) || !dir->root) {
+		if (dir->root) dir->root->Close(dir->root);
+		dir->root = NULL;
+		return false;
+	}
 	if (!efi_folder_exists(dir->root, "/loader")) {
 		dir->root->Close(dir->root);
 		dir->root = NULL;
@@ -37,7 +42,7 @@ static bool sdboot_check_fs(embloader_dir *dir) {
 
 static EFI_STATUS sdboot_boot_load_dir(sdboot_menu *menu, embloader_dir *dir) {
 	EFI_STATUS status = sdboot_boot_load_root(menu, dir);
-	if (EFI_ERROR(status) && dir && dir->root) {
+	if (dir && dir->root) {
 		dir->root->Close(dir->root);
 		dir->root = NULL;
 	}
