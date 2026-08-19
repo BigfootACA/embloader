@@ -281,7 +281,11 @@ int linux_load_dtbos(embloader_loader *loader, EFI_FILE_PROTOCOL *base, fdt fdt,
 		"no dtbo directory configured; only absolute overlay paths can be used"
 	);
 	list *x = list_duplicate_chars(alt_dir, NULL);
-	if (x) list_obj_add(&dtbo_dir, x);
+	if (x && list_obj_add(&dtbo_dir, x) != 0) {
+		list_free_all_def(x);
+		list_free_all_def(dtbo_dir);
+		return -1;
+	}
 	list_reverse(dtbo_dir);
 	confignode_path_foreach(iter, g_embloader.config, "devicetree.overlays") {
 		if (!confignode_path_get_bool(iter.node, "enabled", true, NULL)) continue;
