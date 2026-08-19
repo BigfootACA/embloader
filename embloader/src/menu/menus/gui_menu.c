@@ -185,10 +185,14 @@ static void update_fields(struct gui_menu_ctx *ctx) {
 		ctx->lbl_device,
 		g_embloader.device_name ?: ""
 	);
-	if (ctx->lbl_default && loader) lv_label_set_text(
-		ctx->lbl_default,
-		loader->title ?: (loader->name ?: menu->default_entry)
-	);
+	if (ctx->lbl_default && loader) {
+		char *display_title = embloader_loader_display_title(loader);
+		lv_label_set_text(
+			ctx->lbl_default,
+			display_title ?: (loader->title ?: (loader->name ?: menu->default_entry))
+		);
+		free(display_title);
+	}
 }
 
 static void printf_serial(struct gui_menu_ctx *ctx, const char *fmt, ...) {
@@ -207,11 +211,13 @@ static void printf_serial(struct gui_menu_ctx *ctx, const char *fmt, ...) {
 static void boot_item(struct gui_menu_ctx *ctx) {
 	if (!ctx) return;
 	if (*(ctx->selected)) {
+		char *display_title = embloader_loader_display_title(*ctx->selected);
 		printf_serial(
 			ctx, "Booting entry %s (%s)\r\n",
-			(*ctx->selected)->title ?: "null",
+			display_title ?: ((*ctx->selected)->title ?: "null"),
 			(*ctx->selected)->name ?: "null"
 		);
+		free(display_title);
 		ctx->ret = EFI_SUCCESS;
 	} else {
 		printf_serial(ctx, "Cancel boot\r\n");
@@ -248,13 +254,15 @@ static void item_event_cb(lv_event_t *e) {
 		} else {
 			*(item->ctx->selected) = NULL;
 		}
+		char *display_title = embloader_loader_display_title(item->loader);
 		printf_serial(
 			item->ctx, "%s entry %d. %s (%s)\r\n",
 			checked ? "Selected" : "Deselected",
 			item->index,
-			item->loader->title ?: "null",
+			display_title ?: (item->loader->title ?: "null"),
 			item->loader->name ?: "null"
 		);
+		free(display_title);
 		if (item->ctx->btn_boot) {
 			lv_obj_set_state(item->ctx->btn_boot, LV_STATE_DISABLED, !checked);
 			if (checked) lv_group_focus_obj(item->ctx->btn_boot);
@@ -287,11 +295,13 @@ static void timer_cb(lv_timer_t *timer) {
 	if (ctx->timeout > 0) return;
 	embloader_loader *loader = get_default_loader();
 	if (loader) {
+		char *display_title = embloader_loader_display_title(loader);
 		printf_serial(
 			ctx, "Auto selected entry %s (%s)\r\n",
-			loader->title ?: "null",
+			display_title ?: (loader->title ?: "null"),
 			loader->name ?: "null"
 		);
+		free(display_title);
 		*(ctx->selected) = loader;
 		ctx->flags |= EMBLOADER_FLAG_AUTOBOOT;
 	}
@@ -354,6 +364,7 @@ static bool draw_menu_item(
 	int index
 ) {
 	struct gui_menu_item *item = NULL;
+	char *display_title = NULL;
 	if (!(item = malloc(sizeof(struct gui_menu_item)))) {
 		log_warning("failed to allocate menu item");
 		goto fail;
@@ -363,9 +374,10 @@ static bool draw_menu_item(
 	item->loader = loader;
 	item->index = index;
 	snprintf(item->txt_index, sizeof(item->txt_index), "%d", index);
+	display_title = embloader_loader_display_title(loader);
 	const char * attrs [] = {
 		"name", loader->name ?: "",
-		"title", loader->title ?: "",
+		"title", display_title ?: (loader->title ?: ""),
 		"index", item->txt_index,
 		NULL, NULL
 	};
@@ -388,11 +400,13 @@ static bool draw_menu_item(
 	printf_serial(
 		ctx, "Entry %d. %s (%s)\r\n",
 		index,
-		loader->title ?: "null",
+		display_title ?: (loader->title ?: "null"),
 		loader->name ?: "null"
 	);
+	free(display_title);
 	return true;
 fail:
+	free(display_title);
 	if (item) {
 		if (item->menu) lv_obj_delete(item->menu);
 		free(item);

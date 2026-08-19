@@ -58,6 +58,7 @@ static int sdboot_boot_free_item(void *data) {
 	if (!loader) return 0;
 	if (loader->node) confignode_clean(loader->node);
 	free(loader->bootargs);
+	free(loader->version);
 	free(loader->title);
 	free(loader->name);
 	free(loader);
@@ -293,9 +294,11 @@ static EFI_STATUS sdboot_boot_add_items() {
 		memset(loader, 0, sizeof(embloader_loader));
 		loader->name = item->name ? strdup(item->name) : NULL;
 		loader->title = item->title ? strdup(item->title) : NULL;
+		loader->version = item->version ? strdup(item->version) : NULL;
 		if (
 			(item->name && !loader->name) ||
-			(item->title && !loader->title)
+			(item->title && !loader->title) ||
+			(item->version && !loader->version)
 		) {
 			sdboot_boot_free_item(loader);
 			goto fail;

@@ -171,6 +171,7 @@ static void redraw_editor_dialog(
 	size_t cursor_screen_row = 0, cursor_screen_col = 0;
 	size_t remaining, line_len, pos = scroll_offset * content_width;
 	CHAR16 draw_buff[80], *p;
+	char *display_title;
 	if (dialog_width >= ARRAY_SIZE(draw_buff)) return;
 	for (i = 0; i < dialog_height; i++)
 		set_clear_line(ctx, dialog_col, dialog_row + i, EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK));
@@ -186,10 +187,12 @@ static void redraw_editor_dialog(
 	write_at(ctx, dialog_col, dialog_row, draw_buff);
 	SetMem16(draw_buff, dialog_width * sizeof(CHAR16), L' ');
 	draw_buff[0] = L'│';
+	display_title = embloader_loader_display_title(item);
 	wl = UnicodeSPrint(
 		&draw_buff[2], (dialog_width - 3) * sizeof(CHAR16),
-		L"Item: %a", item->title ? item->title : "(unnamed)"
+		L"Item: %a", display_title ? display_title : (item->title ?: "(unnamed)")
 	);
+	free(display_title);
 	draw_buff[wl + 2] = L' ';
 	draw_buff[dialog_width - 1] = L'│';
 	write_at(ctx, dialog_col, dialog_row + 1, draw_buff);
@@ -527,15 +530,18 @@ static void draw_single_item(struct tui_context *ctx, int index, UINTN display_r
 		EFI_TEXT_ATTR(EFI_LIGHTGRAY, EFI_BLACK)
 	);
 	size_t idx_len = index == 0 ? 1 : (size_t)log10((double)index) + 1;
-	size_t title_len = item->title ? strlen(item->title) : 0;
+	char *display_title = embloader_loader_display_title(item);
+	const char *title = display_title ? display_title : (item->title ?: "(unnamed)");
+	size_t title_len = strlen(title);
 	int avail_cols = ctx->col - idx_len - 12;
 	printf_utf8_at(
 		ctx, 2, display_row, "%c %d. %.*s%s",
 		is_selected ? '>' : ' ',
 		index, avail_cols,
-		item->title ? item->title : "(unnamed)",
+		title,
 		title_len > avail_cols ? "..." : ""
 	);
+	free(display_title);
 }
 
 static bool draw_menu_item(struct tui_context *ctx, int target) {
@@ -597,13 +603,15 @@ static void draw_bottom(struct tui_context *ctx, bool update_layout) {
 	if (ctx->def_loader) {
 		ctx->out->SetAttribute(ctx->out, EFI_TEXT_ATTR(EFI_YELLOW, EFI_BLACK));
 		size_t idx_len = ctx->def_num == 0 ? 1 : (size_t)log10((double)ctx->def_num) + 1;
-		size_t title_len = ctx->def_loader->title ? strlen(ctx->def_loader->title) : 0;
+		char *display_title = embloader_loader_display_title(ctx->def_loader);
+		const char *title = display_title ? display_title : (ctx->def_loader->title ?: "(unnamed)");
+		size_t title_len = strlen(title);
 		int avail_cols = ctx->col - idx_len - 20;
 		printf_utf8_at(
 			ctx, 2, info_row--, "Default: (%d) %.*s%s", ctx->def_num, avail_cols,
-			ctx->def_loader->title ? ctx->def_loader->title : "(unnamed)",
-			title_len > avail_cols ? "..." : ""
+			title, title_len > avail_cols ? "..." : ""
 		);
+		free(display_title);
 	}
 	if (ctx->max_visible_items != 0 && ctx->item_count > (int)ctx->max_visible_items) {
 		ctx->out->SetAttribute(ctx->out, EFI_TEXT_ATTR(EFI_CYAN, EFI_BLACK));

@@ -39,6 +39,7 @@ struct embloader_menu {
 struct embloader_loader {
 	char *name;
 	char *title;
+	char *version;
 	embloader_loader_type type;
 	bool complete;
 	bool editor;
@@ -47,6 +48,7 @@ struct embloader_loader {
 	char *bootargs;
 	void *extra;
 };
+extern char *embloader_loader_display_title(const embloader_loader *loader);
 extern void embloader_load_loader(confignode *node);
 extern EFI_STATUS embloader_loader_boot(embloader_loader *loader);
 extern embloader_loader *embloader_find_loader(const char *name);

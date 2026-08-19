@@ -58,6 +58,30 @@ static bool loader_is_valid(embloader_loader *loader) {
 	return true;
 }
 
+static bool loader_title_is_repeated(const embloader_loader *loader) {
+	list *p;
+	int count = 0;
+	if (!loader || !loader->title || !g_embloader.menu) return false;
+	if ((p = list_first(g_embloader.menu->loaders))) do {
+		LIST_DATA_DECLARE(item, p, embloader_loader*);
+		if (!item || !item->title || strcmp(item->title, loader->title) != 0) continue;
+		if (++count > 1) return true;
+	} while ((p = p->next));
+	return false;
+}
+
+char *embloader_loader_display_title(const embloader_loader *loader) {
+	const char *title = loader && loader->title ? loader->title : "(unnamed)";
+	if (
+		!loader_title_is_repeated(loader) ||
+		!loader->version || !loader->version[0]
+	) return strdup(title);
+	char *display = NULL;
+	if (asprintf(&display, "%s (%s)", title, loader->version) < 0)
+		return NULL;
+	return display;
+}
+
 /**
  * @brief Load a loader configuration from a config node.
  * This function parses a configuration node representing a boot loader entry
@@ -74,6 +98,7 @@ void embloader_load_loader(confignode *node) {
 	memset(loader, 0, sizeof(embloader_loader));
 	loader->name = strdup(name);
 	loader->title = confignode_path_get_string(node, "title", NULL, NULL);
+	loader->version = confignode_path_get_string(node, "version", NULL, NULL);
 	char *type_str = confignode_path_get_string(node, "type", NULL, NULL);
 	loader->type = embloader_menu_get_loader_type(type_str);
 	free(type_str);
@@ -102,6 +127,7 @@ void embloader_load_loader(confignode *node) {
 	if (list_obj_add_new(&g_embloader.menu->loaders, loader) == 0) return;
 fail:
 	free(loader->bootargs);
+	free(loader->version);
 	free(loader->title);
 	free(loader->name);
 	free(loader);

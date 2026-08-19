@@ -84,14 +84,19 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flag
 			menu->default_entry && item->name &&
 			strcmp(menu->default_entry, item->name) == 0
 		) def_num = index, def_loader = item;
-		printf("  %d. %s\n", index++, item->title ? item->title : "(unnamed)");
+		char *display_title = embloader_loader_display_title(item);
+		const char *title = display_title ? display_title : (item->title ?: "(unnamed)");
+		printf("  %d. %s\n", index++, title);
+		free(display_title);
 	} while ((p = p->next));
 	printf("========================================\n");
 	printf("Menu timeout: %d seconds\n", menu->timeout);
-	if (def_loader) printf(
-		"Default option: (%d) %s\n",
-		def_num, def_loader->title ? def_loader->title : "(unnamed)"
-	);
+	if (def_loader) {
+		char *display_title = embloader_loader_display_title(def_loader);
+		const char *title = display_title ? display_title : (def_loader->title ?: "(unnamed)");
+		printf("Default option: (%d) %s\n", def_num, title);
+		free(display_title);
+	}
 	while (true) {
 		printf("Select an option (1-%d) or press Enter to boot default: ", index - 1);
 		fflush(stdout);
@@ -106,10 +111,10 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flag
 			status == EFI_TIMEOUT ||
 			(status == EFI_SUCCESS && !input[0])
 		) && def_loader) {
-			printf(
-				"Booting default option (%d) %s\n\n",
-				def_num, def_loader->title ? def_loader->title : "(unnamed)"
-			);
+			char *display_title = embloader_loader_display_title(def_loader);
+			const char *title = display_title ? display_title : (def_loader->title ?: "(unnamed)");
+			printf("Booting default option (%d) %s\n\n", def_num, title);
+			free(display_title);
 			*selected = def_loader;
 			if (flags) *flags |= EMBLOADER_FLAG_AUTOBOOT;
 			return EFI_SUCCESS;
@@ -125,10 +130,10 @@ EFI_STATUS embloader_text_menu_start(embloader_loader **selected, uint64_t *flag
 		if ((p = list_first(menu->loaders))) do {
 			LIST_DATA_DECLARE(item, p, embloader_loader*);
 			if (!item || idx++ != choice)  continue;
-			printf(
-				"Choose option (%ld) %s\n\n",
-				choice, item->title ? item->title : "(unnamed)"
-			);
+			char *display_title = embloader_loader_display_title(item);
+		const char *title = display_title ? display_title : (item->title ?: "(unnamed)");
+			printf("Choose option (%ld) %s\n\n", choice, title);
+			free(display_title);
 			if (flags) *flags |= EMBLOADER_FLAG_USERSELECT;
 			show_ask_editor(item, flags);
 			*selected = item;
